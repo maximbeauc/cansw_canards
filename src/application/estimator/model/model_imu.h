@@ -1,7 +1,7 @@
 #ifndef MODEL_IMU_H
 #define MODEL_IMU_H
 
-#include "application/estimator/estimator_types.h"
+#include "application/estimator/estimator_internal.h"
 #include "application/estimator/model/jacobians.h"
 #include "arm_math.h"
 #include "common/math/math.h"

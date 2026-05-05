@@ -5,13 +5,16 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "application/controller/controller_types.h"
+#include "application/estimator/estimator_internal.h"
 #include "application/estimator/estimator_types.h"
 #include "application/estimator/pad_filter.h"
+#include "application/fsm/fsm_types.h"
 
 /**
- * persistent state updated by estimator_module
+ * persistent state updated by estimator and fsm
  */
-typedef struct {
+typedef struct estimator_module_ctx_t {
 	x_state_t x;
 	double P_flat[SIZE_STATE * SIZE_STATE];
 	y_imu_t bias_movella;
@@ -21,13 +24,10 @@ typedef struct {
 	pad_filter_ctx_t pad_filter_ctx;
 } estimator_module_ctx_t;
 
-#include "application/controller/controller.h"
-#include "application/flight_phase/flight_phase.h"
-
 /**
  * input to estimator_module function
  */
-typedef struct {
+typedef struct estimator_module_input_t {
 	float64_t timestamp_sec; // new timestamp (seconds)
 	y_imu_t movella; // latest movella data
 	y_imu_t pololu; // latest pololu data
@@ -44,8 +44,7 @@ typedef struct {
  * @param ctx persistent estimator context to read and update
  * @param output_to_controller pointer to write output cmd for controller
  */
-w_status_t estimator_module(const estimator_module_input_t *input,
-							flight_phase_state_t flight_phase, estimator_module_ctx_t *ctx,
-							controller_input_t *output_to_controller);
+w_status_t estimator_module(const estimator_module_input_t *input, fsm_state_t flight_phase,
+							estimator_module_ctx_t *ctx, controller_input_t *output_to_controller);
 
 #endif // ESTIMATOR_MODULE_H

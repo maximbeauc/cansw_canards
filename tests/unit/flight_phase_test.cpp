@@ -7,6 +7,7 @@ extern "C" {
 #include "FreeRTOS.h"
 #include "application/can_handler/can_handler.h"
 #include "application/flight_phase/flight_phase.h"
+#include "application/fsm/fsm.h"
 #include "application/logger/log.h"
 #include "canlib.h"
 #include "queue.h"
@@ -31,7 +32,7 @@ FAKE_VALUE_FUNC(int, get_cmd_actuator_state, const can_msg_t *)
 
 BaseType_t
 xQueuePeek_state_pad(QueueHandle_t xQueue, void *const pvBuffer, TickType_t xTicksToWait) {
-    flight_phase_state_t *p = (flight_phase_state_t *)pvBuffer;
+    fsm_state_t *p = (fsm_state_t *)pvBuffer;
     *p = STATE_IDLE;
     return pdPASS;
 }
@@ -113,7 +114,7 @@ TEST_F(FlightPhaseTest, GetStateReturnsCorrectDefaultState) {
     xQueuePeek_fake.custom_fake = xQueuePeek_state_pad;
 
     // Act
-    flight_phase_state_t state = flight_phase_get_state();
+    fsm_state_t state = flight_phase_get_state();
 
     // Assert
     EXPECT_EQ(state, STATE_IDLE);
@@ -124,7 +125,7 @@ TEST_F(FlightPhaseTest, GetStateReturnsCorrectErrorState) {
     // Do nothing when xQueuePeek is called
 
     // Act
-    flight_phase_state_t state = flight_phase_get_state();
+    fsm_state_t state = flight_phase_get_state();
 
     // Assert
     EXPECT_EQ(state, STATE_ERROR);

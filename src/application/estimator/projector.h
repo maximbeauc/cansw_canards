@@ -1,8 +1,8 @@
 #ifndef ESTIMATOR_PROJECTOR_H
 #define ESTIMATOR_PROJECTOR_H
 
-#include "application/controller/controller.h"
-#include "application/estimator/estimator_types.h"
+#include "application/controller/controller_types.h"
+#include "application/estimator/estimator_internal.h"
 
 /**
  * @brief Computes roll state and scheduling variables for controller

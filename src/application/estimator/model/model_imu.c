@@ -1,6 +1,6 @@
 // include paths
 #include "application/estimator/model/model_imu.h"
-#include "application/estimator/estimator_types.h"
+#include "application/estimator/estimator_internal.h"
 
 #include "application/estimator/model/model_airdata.h"
 #include "application/estimator/model/quaternion.h"

@@ -4,7 +4,7 @@
 #include "task.h"
 
 #include "application/can_handler/can_handler.h"
-#include "application/estimator/estimator.h"
+#include "application/estimator/estimator_types.h"
 #include "application/imu_handler/imu_handler.h"
 #include "application/logger/log.h"
 #include "canlib.h"

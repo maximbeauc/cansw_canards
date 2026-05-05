@@ -7,7 +7,7 @@ extern "C" {
 #include "FreeRTOS.h"
 #include "application/can_handler/can_handler.h"
 #include "application/controller/controller.h"
-#include "application/estimator/estimator.h"
+#include "application/estimator/estimator_types.h"
 #include "application/estimator/estimator_module.h"
 #include "application/estimator/pad_filter.h"
 #include "application/flight_phase/flight_phase.h"

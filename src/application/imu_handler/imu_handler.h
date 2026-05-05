@@ -1,8 +1,7 @@
 #ifndef IMU_HANDLER_H
 #define IMU_HANDLER_H
 
-#include "application/estimator/estimator.h"
-#include "application/state_machine/state_machine.h"
+#include "application/estimator/estimator_types.h"
 #include "drivers/altimu-10/altimu-10.h"
 
 #include "rocketlib/include/common.h"

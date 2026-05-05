@@ -8,12 +8,12 @@
 #include "canlib.h"
 
 #include "application/can_handler/can_handler.h"
-#include "application/controller/controller.h"
+#include "application/controller/controller_types.h"
 #include "application/estimator/estimator.h"
+#include "application/estimator/estimator_internal.h"
 #include "application/estimator/estimator_module.h"
-#include "application/estimator/estimator_types.h"
 #include "application/estimator/pad_filter.h"
-#include "application/flight_phase/flight_phase.h"
+#include "application/flight_phase/flight_phase_types.h"
 #include "application/imu_handler/imu_handler.h"
 #include "application/logger/log.h"
 #include "drivers/timer/timer.h"
@@ -30,12 +30,9 @@ static const uint32_t ESTIMATOR_TASK_PERIOD_MS = 5;
 // Error tracking
 static estimator_error_data_t estimator_error_stats = {0};
 
-// latest imu readings from imu handler
-static QueueHandle_t imu_data_queue = NULL;
+// TODO remove this once we get encorder reintegrated into the system
 // latest encoder reading (millidegrees) from CAN
 static QueueHandle_t encoder_data_queue_rad = NULL;
-// latest control command (radians) from controller
-static QueueHandle_t controller_cmd_queue = NULL;
 
 // ---------- private static functions ----------
 /**
@@ -72,12 +69,9 @@ w_status_t estimator_init(void) {
 	}
 
 	// create queues for imu data, encoder data, and controller cmd
-	imu_data_queue = xQueueCreate(1, sizeof(all_sensors_data_t));
 	encoder_data_queue_rad = xQueueCreate(1, sizeof(float));
-	controller_cmd_queue = xQueueCreate(1, sizeof(controller_output_t));
 
-	if ((NULL == imu_data_queue) || (NULL == encoder_data_queue_rad) ||
-		(NULL == controller_cmd_queue)) {
+	if (NULL == encoder_data_queue_rad) {
 		log_text(1, "adc", "initfailq");
 		return W_FAILURE;
 	}
@@ -94,15 +88,7 @@ w_status_t estimator_init(void) {
 	return W_SUCCESS;
 }
 
-w_status_t estimator_update_imu_data(all_sensors_data_t *data) {
-	if (NULL == data) {
-		return W_FAILURE;
-	}
-	xQueueOverwrite(imu_data_queue, data);
-	return W_SUCCESS;
-}
-
-w_status_t estimator_step(estimator_module_ctx_t *ctx, const flight_phase_state_t curr_flight_phase,
+w_status_t estimator_step(estimator_module_ctx_t *ctx, const fsm_state_t curr_fsm_state,
 						  const all_sensors_data_t *p_latest_imu_data,
 						  controller_ctx_t *p_controller_context, uint32_t loop_count) {
 	w_status_t status = W_SUCCESS;
@@ -110,11 +96,7 @@ w_status_t estimator_step(estimator_module_ctx_t *ctx, const flight_phase_state_
 	// input from controller ctx or keep current arrangement This should be input based on my
 	// understanding of new design
 
-	// this is done to make sure only under a few state are the new cmd actually going to be
-	// indicated as usable by the system (this is to keep in structure with last years system,
-	// though this seem very redundent)
-	p_controller_context->state_updated = false;
-
+	controller_output_t latest_controller_cmd = {0};
 	float latest_encoder_rad = 0;
 	float64_t curr_time_sec = 0;
 	bool encoder_is_dead = false;
@@ -148,9 +130,12 @@ w_status_t estimator_step(estimator_module_ctx_t *ctx, const flight_phase_state_
 	// }
 
 	// get the latest controller cmd, only while controller is active (act-allowed or recovery)
-	if ((STATE_RECOVERY == curr_flight_phase) || (STATE_ACT_ALLOWED == curr_flight_phase)) {
-		// TODO consider what to do controller cmd if not in these two state, reset it back to 0, if
-		// not???
+	// TODO: consider how the new fsm should behave if not in these state, currently just hard set
+	// to 0
+	if ((STATE_RECOVERY == curr_fsm_state) || (STATE_ACT_ALLOWED == curr_fsm_state)) {
+		// this way the command angle would be only set to non 0 if in the right state
+		latest_controller_cmd.commanded_angle = p_controller_context->cmd_output.commanded_angle;
+		latest_controller_cmd.timestamp = p_controller_context->cmd_output.timestamp;
 	}
 
 	// get current time. as failsafe: default to 5ms period
@@ -171,7 +156,7 @@ w_status_t estimator_step(estimator_module_ctx_t *ctx, const flight_phase_state_
 												.movella_is_dead =
 													p_latest_imu_data->movella.is_dead,
 												.pololu_is_dead = p_latest_imu_data->pololu.is_dead,
-												.cmd = p_controller_context->cmd_output,
+												.cmd = latest_controller_cmd,
 												.encoder = latest_encoder_rad,
 												.encoder_is_dead = encoder_is_dead};
 
@@ -184,7 +169,7 @@ w_status_t estimator_step(estimator_module_ctx_t *ctx, const flight_phase_state_
 		// just have the state edited directly, and have bool to indicate if controller can use the
 		// output (the bool seems very redundent so don't think is best way)
 		if (estimator_module(
-				&estimator_input, curr_flight_phase, ctx, &(p_controller_context->new_state)) !=
+				&estimator_input, curr_fsm_state, ctx, &(p_controller_context->new_state)) !=
 			W_SUCCESS) {
 			log_text(10, "Estimator", "estimator_module fail");
 			status = W_FAILURE;
@@ -194,13 +179,13 @@ w_status_t estimator_step(estimator_module_ctx_t *ctx, const flight_phase_state_
 	// send controller cmd, only during flight, and if all data collected successfully
 	// continue actuating after recovery too to avoid timer lockout issues
 	if (W_SUCCESS == status) {
-		if ((STATE_RECOVERY == curr_flight_phase) || (STATE_ACT_ALLOWED == curr_flight_phase)) {
+		if ((STATE_RECOVERY == curr_fsm_state) || (STATE_ACT_ALLOWED == curr_fsm_state)) {
 			p_controller_context->state_updated = true;
 		}
 	}
 
 	// ------- do sdcard data logging at 200hz (only after pad filter starts) -------
-	if (curr_flight_phase >= STATE_SE_INIT) {
+	if (curr_fsm_state >= STATE_SE_INIT) {
 		// log data sent to controller
 		log_data_container_t log_payload = {0};
 
@@ -255,7 +240,7 @@ w_status_t estimator_step(estimator_module_ctx_t *ctx, const flight_phase_state_
 
 		// log the end of pad filter one time only
 		static bool pad_filter_end_logged = false;
-		if (curr_flight_phase > STATE_SE_INIT) {
+		if (curr_fsm_state > STATE_SE_INIT) {
 			if (!pad_filter_end_logged) {
 				log_text(1,
 						 "Estimator",

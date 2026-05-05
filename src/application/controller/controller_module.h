@@ -1,7 +1,7 @@
 #ifndef CONTROLLER_MODULE_H
 #define CONTROLLER_MODULE_H
 
-#include "application/controller/controller.h"
+#include "application/controller/controller_types.h"
 #include "third_party/rocketlib/include/common.h"
 
 /**

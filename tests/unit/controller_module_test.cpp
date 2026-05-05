@@ -4,7 +4,7 @@
 extern "C" {
 // add includes like freertos, hal, proc headers, etc
 #include "FreeRTOS.h"
-#include "application/controller/controller.h"
+#include "application/controller/controller_types.h"
 #include "application/controller/controller_module.h"
 #include "application/controller/gain_table.h"
 #include "application/flight_phase/flight_phase.h"

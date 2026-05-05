@@ -1,7 +1,7 @@
 #ifndef MODEL_ACCELERATION_H
 #define MODEL_ACCELERATION_H
 
-#include "application/estimator/estimator_types.h"
+#include "application/estimator/estimator_internal.h"
 #include "common/math/math.h"
 
 /**

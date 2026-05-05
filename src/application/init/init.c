@@ -106,12 +106,12 @@ static void system_init_task(void *arg) {
 	// Create FreeRTOS tasks
 	BaseType_t task_status = pdTRUE;
 
-	task_status &= xTaskCreate(flight_phase_task,
-							   "flight phase",
-							   256,
-							   NULL,
-							   flight_phase_task_priority,
-							   &flight_phase_task_handle);
+	// task_status &= xTaskCreate(flight_phase_task,
+	// 						   "flight phase",
+	// 						   256,
+	// 						   NULL,
+	// 						   flight_phase_task_priority,
+	// 						   &flight_phase_task_handle);
 
 	// task_status &= xTaskCreate(health_check_task,
 	//     "health",

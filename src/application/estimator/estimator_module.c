@@ -1,11 +1,11 @@
 #include "application/estimator/estimator_module.h"
 #include "application/estimator/ekf.h"
 #include "application/estimator/projector.h"
+#include "application/fsm/fsm_types.h"
 #include "application/logger/log.h"
 
-w_status_t estimator_module(const estimator_module_input_t *input,
-							flight_phase_state_t flight_phase, estimator_module_ctx_t *ctx,
-							controller_input_t *output_to_controller) {
+w_status_t estimator_module(const estimator_module_input_t *input, fsm_state_t flight_phase,
+							estimator_module_ctx_t *ctx, controller_input_t *output_to_controller) {
 	w_status_t status = W_SUCCESS;
 
 	// calculate dt regardless of flight phase

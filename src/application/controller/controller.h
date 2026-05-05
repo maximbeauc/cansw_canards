@@ -1,43 +1,22 @@
 #ifndef CONTROLLER_H_
 #define CONTROLLER_H_
 
-#include "application/controller/gain_table.h"
-#include "third_party/rocketlib/include/common.h"
+#include <stdbool.h>
+#include <stdint.h>
 
 #include "FreeRTOS.h"
 
-#include <stdbool.h>
-#include <stdint.h>
+#include "application/controller/controller_types.h"
+#include "application/controller/gain_table.h"
+#include "third_party/rocketlib/include/common.h"
+
+#include "application/fsm/fsm_types.h"
 
 #define FEEDBACK_GAIN_NUM (GAIN_NUM - 1) // subtract 1 for the pre-gain
 #define ROLL_STATE_NUM (FEEDBACK_GAIN_NUM)
 #define MIN_COOR_BOUND 0
 
 /* Enums/Types */
-typedef union {
-	double roll_state_arr[ROLL_STATE_NUM];
-
-	struct {
-		double roll_angle;
-		double roll_rate;
-		double canard_angle;
-	};
-} roll_state_t;
-
-// input from state estimation module
-typedef struct {
-	// Roll state
-	roll_state_t roll_state;
-	// Scheduling variables (flight condition)
-	double pressure_dynamic;
-	double canard_coeff;
-} controller_input_t;
-
-// Output of controller: latest commanded canard angle
-typedef struct {
-	double commanded_angle; // radians
-	uint32_t timestamp; // ms
-} controller_output_t;
 
 // main controller state using in task
 typedef struct {
@@ -62,18 +41,20 @@ typedef struct {
 /**
  * state of a controller instance.
  */
-typedef struct {
+typedef struct controller_ctx_t {
 	controller_output_t cmd_output;
 	controller_input_t new_state;
-	// both of the following bool should be revaluated if they should still exisits with the new
-	// system design
+
+	// this is done to make sure only under a few state are the new cmd actually going to be
+	// indicated as usable by the system (this is to keep in structure with last years system,
+	// though this seem very redundent)
 	bool state_updated;
-	bool cmd_updated;
+
+	// bool cmd_updated; // TODO: see if this will be reimplemented. Based on my understanding this
+	// is no longer needed, as we don't care about freshness of this
 
 	uint32_t last_run_ms; // last time the controller did a full loop. use for rate-limiting
 } controller_ctx_t;
-
-#include "application/flight_phase/flight_phase.h"
 
 /**
  * Initialize controller module
@@ -83,28 +64,14 @@ typedef struct {
 w_status_t controller_init(void);
 
 /**
- * Update controller with new state data - called by state estimation module
- * @param new_state Latest state estimate from state estimation
- * @return W_FAILURE if validation/queueing fails
- */
-w_status_t controller_update_inputs(controller_input_t *new_state);
-
-/**
- * Get most recent control output - called by state estimation module
- * @param output Pointer to store output -> type defined in state_estimation.h
- * @return W_FAILURE if no output available
- */
-w_status_t controller_get_latest_output(controller_output_t *output);
-
-/**
  * @brief run 1 step of the controller
  * @param context pointer to controller global context
- * @param curr_flight_phase current flight phase state
+ * @param curr_fsm_state current flight phase state
  * @param act_allowed_timestamp_ms the timestamp at which act_allowed was set (only used when passed
  * actuation allowed)
  * @param curr_timestamp_ms the currrent timestamp
  */
-w_status_t controller_step(controller_ctx_t *context, const flight_phase_state_t curr_flight_phase,
+w_status_t controller_step(controller_ctx_t *context, const fsm_state_t curr_fsm_state,
 						   const uint32_t act_allowed_timestamp_ms,
 						   const uint32_t curr_timestamp_ms);
 

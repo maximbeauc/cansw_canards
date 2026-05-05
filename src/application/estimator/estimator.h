@@ -1,66 +1,16 @@
 #ifndef STATE_EST_H
 #define STATE_EST_H
 
+#include "application/controller/controller_types.h"
+#include "application/estimator/estimator_internal.h"
 #include "application/estimator/estimator_types.h"
+#include "application/fsm/fsm_types.h"
 #include "common/math/math.h"
 
 #include "third_party/rocketlib/include/common.h"
 
 #include <stdbool.h>
 #include <stdint.h>
-
-// measurement data from 1 arbitrary imu
-// TODO: remove old impl of `estimator_imu_measurement_t`
-typedef struct {
-	float64_t timestamp_imu_sec;
-	vector3d_t accelerometer; // gravities
-	vector3d_t gyroscope; // rad/sec
-	vector3d_t magnetometer; // mgauss (pololu) or arbitrary units (movella)
-	float32_t barometer; // Pa
-	bool is_dead;
-} estimator_imu_measurement_t;
-
-/**
- * @brief LSM6DSV32X (32G IMU), MS5611 (High-alt Barometer), and LSM303AGR (Compass) measurements
- */
-typedef struct {
-	vector3d_t board_accel; // m/s^2
-	vector3d_t board_gyro; // rad/s
-	float64_t board_baro; // Pa
-	vector3d_t board_mag; // gauss
-	bool is_dead;
-} estimator_board_meas_t;
-
-/**
- * @brief MTi-630 (Movella) measurements
- */
-typedef struct {
-	vector3d_t mti_accel; // m/s^2
-	vector3d_t mti_gyro; // rad/s
-	float64_t mti_baro; // Pa
-	vector3d_t mti_mag; // gauss
-	bool is_dead;
-} estimator_mti_meas_t;
-
-/**
- * @brief ADXL380 (AD Breakout Accel) and ADXRS649 (AD high-rate gyro) measurements
- */
-typedef struct {
-	vector3d_t ad_accel; // m/s^2
-	float64_t ad_gyro; // rad/s, 1 axis gyro
-	bool is_dead;
-} estimator_ad_meas_t;
-
-// measurements from all imus together
-typedef struct {
-	estimator_board_meas_t board_meas;
-	estimator_mti_meas_t mti_meas;
-	estimator_ad_meas_t ad_meas;
-
-	// TODO: remove old impl below
-	estimator_imu_measurement_t movella; // raw movella data
-	estimator_imu_measurement_t pololu; // raw pololu data
-} all_sensors_data_t;
 
 /**
  * @brief Structure to track estimator errors and status
@@ -74,11 +24,6 @@ typedef struct {
 	uint32_t can_log_fails; /**< Count of CAN logging failures */
 	uint32_t invalid_phase_errors; /**< Count of invalid flight phase errors */
 } estimator_error_data_t;
-
-// this has been moved here so that all_sensors_data_t can be defined before running this header
-#include "application/controller/controller.h"
-#include "application/estimator/estimator_module.h"
-#include "application/flight_phase/flight_phase.h"
 
 /**
  * @brief initialize estimator module. call before creating estimator task
@@ -109,13 +54,13 @@ uint32_t estimator_get_status(void);
 /**
  * @brief 1 step of estimator
  * @param ctx pointer to estimator context
- * @param curr_flight_phase the current flight phase
+ * @param curr_fsm_state the current flight phase
  * @param p_latest_imu_data pointer to the latest imu data
  * @param p_controller_context pointer to conrtoller context for both past actuation info and to
  * update with new actuation info
  * @param loop_count for rate limiting
  */
-w_status_t estimator_step(estimator_module_ctx_t *ctx, const flight_phase_state_t curr_flight_phase,
+w_status_t estimator_step(estimator_module_ctx_t *ctx, const fsm_state_t curr_fsm_state,
 						  const all_sensors_data_t *p_latest_imu_data,
 						  controller_ctx_t *p_controller_context, uint32_t loop_count);
 
