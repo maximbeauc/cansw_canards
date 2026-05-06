@@ -91,10 +91,12 @@ w_status_t estimator_init(void) {
 w_status_t estimator_step(estimator_module_ctx_t *ctx, const fsm_state_t curr_fsm_state,
 						  const all_sensors_data_t *p_latest_imu_data,
 						  controller_ctx_t *p_controller_context, uint32_t loop_count) {
+	// check if all of the pointers are valid before proceeding
+	if ((NULL == ctx) || (NULL == p_latest_imu_data) || (NULL == p_controller_context)) {
+		log_text(10, "Estimator", "ERROR: invalid pointers");
+		return W_INVALID_PARAM;
+	}
 	w_status_t status = W_SUCCESS;
-	// controller_output_t latest_controller_cmd = {0}; // TODO: consider if will be passed in as an
-	// input from controller ctx or keep current arrangement This should be input based on my
-	// understanding of new design
 
 	controller_output_t latest_controller_cmd = {0};
 	float latest_encoder_rad = 0;
@@ -169,7 +171,7 @@ w_status_t estimator_step(estimator_module_ctx_t *ctx, const fsm_state_t curr_fs
 		// just have the state edited directly, and have bool to indicate if controller can use the
 		// output (the bool seems very redundent so don't think is best way)
 		if (estimator_module(
-				&estimator_input, curr_fsm_state, ctx, &(p_controller_context->new_state)) !=
+				&estimator_input, curr_fsm_state, ctx, &(p_controller_context->new_input_state)) !=
 			W_SUCCESS) {
 			log_text(10, "Estimator", "estimator_module fail");
 			status = W_FAILURE;
@@ -190,13 +192,13 @@ w_status_t estimator_step(estimator_module_ctx_t *ctx, const fsm_state_t curr_fs
 		log_data_container_t log_payload = {0};
 
 		log_payload.controller_input_t.roll_angle =
-			(float)p_controller_context->new_state.roll_state.roll_angle;
+			(float)p_controller_context->new_input_state.roll_state.roll_angle;
 		log_payload.controller_input_t.roll_rate =
-			(float)p_controller_context->new_state.roll_state.roll_rate;
+			(float)p_controller_context->new_input_state.roll_state.roll_rate;
 		log_payload.controller_input_t.canard_coeff =
-			(float)p_controller_context->new_state.canard_coeff;
+			(float)p_controller_context->new_input_state.canard_coeff;
 		log_payload.controller_input_t.pressure_dynamic =
-			(float)p_controller_context->new_state.pressure_dynamic;
+			(float)p_controller_context->new_input_state.pressure_dynamic;
 
 		log_data(1, LOG_TYPE_CONTROLLER_INPUT, &log_payload);
 

@@ -13,6 +13,7 @@ extern "C" {
 #include "application/estimator/estimator_internal.h"
 #include "application/estimator/model/model_dynamics.h"
 #include "application/estimator/model/quaternion.h"
+#include "application/fsm/fsm_types.h"
 #include "arm_math.h"
 #include "common/math/math-algebra3d.h"
 #include "common/math/math.h"
@@ -85,7 +86,7 @@ TEST_F(EstimatorModuleTest, BothImusAlivePadFilterPhaseOnce) {
     input.cmd = cmd;
     input.encoder = 0.03;
 
-    flight_phase_state_t flight_phase = STATE_SE_INIT;
+    fsm_state_t flight_phase = STATE_SE_INIT;
 
     // Initializing the context
     estimator_module_ctx_t ctx = {0};
@@ -230,7 +231,7 @@ TEST_F(EstimatorModuleTest, BothImusAlivePadFilterPhaseTwice) {
     input.cmd = cmd;
     input.encoder = 0.03;
 
-    flight_phase_state_t flight_phase = STATE_SE_INIT;
+    fsm_state_t flight_phase = STATE_SE_INIT;
 
     estimator_module_ctx_t ctx = {0};
     controller_input_t controller_input = {0};
@@ -476,7 +477,7 @@ TEST_F(EstimatorModuleTest, BothImusAliveActAllowedPhaseOnce) {
     input.cmd = cmd;
     input.encoder = 0.03;
 
-    flight_phase_state_t flight_phase = STATE_ACT_ALLOWED;
+    fsm_state_t flight_phase = STATE_ACT_ALLOWED;
 
     estimator_module_ctx_t ctx = {
         .x =

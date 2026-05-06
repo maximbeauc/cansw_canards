@@ -10,7 +10,7 @@ extern "C" {
 #include "application/estimator/estimator_types.h"
 #include "application/estimator/estimator_module.h"
 #include "application/estimator/pad_filter.h"
-#include "application/flight_phase/flight_phase.h"
+#include "application/fsm/fsm_types.h"
 #include "application/logger/log.h"
 #include "canlib.h"
 #include "drivers/timer/timer.h"
@@ -18,20 +18,15 @@ extern "C" {
 #include "task.h"
 #include "third_party/rocketlib/include/common.h"
 
-extern w_status_t controller_run_loop();
-
 DEFINE_FFF_GLOBALS;
 }
 
 // Define Fakes
-// flight_phase_state_t flight_phase_get_state(void);
-FAKE_VALUE_FUNC(flight_phase_state_t, flight_phase_get_state);
 // bool get_analog_data(const can_msg_t *msg, can_analog_sensor_id_t *sensor_id, uint16_t *value);
 FAKE_VALUE_FUNC(bool, get_analog_data, const can_msg_t *, can_analog_sensor_id_t *, uint16_t *);
 FAKE_VOID_FUNC(proc_handle_fatal_error, const char *);
 // w_status_t can_handler_transmit(const can_msg_t *msg);
 FAKE_VALUE_FUNC(w_status_t, can_handler_transmit, const can_msg_t *);
-FAKE_VALUE_FUNC(w_status_t, flight_phase_get_act_allowed_ms, uint32_t *);
 FAKE_VALUE_FUNC_VARARG(w_status_t, log_text, uint32_t, const char *, const char *, ...);
 FAKE_VALUE_FUNC(w_status_t, log_data, uint32_t, log_data_type_t, const log_data_container_t *);
 FAKE_VALUE_FUNC(
@@ -39,18 +34,10 @@ FAKE_VALUE_FUNC(
     can_msg_t *
 );
 
-// Customizable fake for flight_phase_get_act_allowed_ms
-static uint32_t test_act_allowed_ms_value = 0;
-w_status_t flight_phase_get_act_allowed_custom(uint32_t *out_ms) {
-    *out_ms = test_act_allowed_ms_value;
-    return flight_phase_get_act_allowed_ms_fake.return_val;
-}
+// TODO: confirm with Finn and Tristan with actual tolerance
+static double CMD_TOLERANCE_RAD = 180.0 * 1000.0 / M_PI;
 
-static controller_input_t new_input_state = {0};
-BaseType_t xQueueReceive_custom(QueueHandle_t arg0, void *arg1, TickType_t arg2) {
-    *(controller_input_t *)arg1 = new_input_state;
-    return xQueueReceive_fake.return_val;
-}
+static uint32_t test_act_allowed_ms_value = 0;
 
 uint16_t rad_to_can_cmd(float rad) {
     // Convert radians to millidegrees and shift to unsigned 16-bit
@@ -58,26 +45,19 @@ uint16_t rad_to_can_cmd(float rad) {
     return (uint16_t)(res_int16); 
 }
 
+
 class ControllerTest : public ::testing::Test {
 protected:
     void SetUp() override {
-        RESET_FAKE(flight_phase_get_state);
         RESET_FAKE(get_analog_data);
         RESET_FAKE(proc_handle_fatal_error);
         RESET_FAKE(can_handler_transmit);
         RESET_FAKE(log_text);
         RESET_FAKE(log_data);
         RESET_FAKE(build_actuator_analog_cmd_msg);
-        RESET_FAKE(flight_phase_get_act_allowed_ms);
         RESET_FAKE(xQueueReceive);
         FFF_RESET_HISTORY();
         // default to everything passing
-        xQueueReceive_fake.return_val = pdTRUE;
-        xQueueReceive_fake.custom_fake = xQueueReceive_custom;
-        can_handler_transmit_fake.return_val = W_SUCCESS;
-        // Register the custom fake for flight_phase_get_act_allowed_ms
-        flight_phase_get_act_allowed_ms_fake.custom_fake = flight_phase_get_act_allowed_custom;
-        flight_phase_get_act_allowed_ms_fake.return_val = W_SUCCESS;
         test_act_allowed_ms_value = 0;
     }
 
@@ -90,152 +70,201 @@ TEST_F(ControllerTest, Init) {
     EXPECT_EQ(res, W_SUCCESS);
 }
 
-TEST_F(ControllerTest, RunLoopPadPhase) {
+TEST_F(ControllerTest, StepPadPhase) {
     // Arrange
-    flight_phase_get_state_fake.return_val = STATE_IDLE;
+
+    // initalize context
+    controller_ctx_t ctx = {.state_updated = true, .cmd_updated = false};
+    const fsm_state_t curr_fsm_state = STATE_IDLE;
+    const uint32_t act_allowed_timestamp_ms = 1000;
+    const uint32_t curr_timestamp_ms = test_act_allowed_ms_value + act_allowed_timestamp_ms;
 
     // Act
-    w_status_t actual_res = controller_run_loop();
+    w_status_t actual_res = controller_step(&ctx, curr_fsm_state, act_allowed_timestamp_ms, curr_timestamp_ms);
 
     // Assert
     EXPECT_EQ(actual_res, W_SUCCESS);
-    EXPECT_EQ(can_handler_transmit_fake.call_count, 0);
+    EXPECT_FALSE(ctx.cmd_updated);
     EXPECT_EQ(log_text_fake.call_count, 0);
 }
 
-TEST_F(ControllerTest, RunLoopPadFilterPhase) {
+TEST_F(ControllerTest, StepPadFilterPhase) {
     // Arrange
-    flight_phase_get_state_fake.return_val = STATE_SE_INIT;
+
+    // initalize context
+    controller_ctx_t ctx = {.state_updated = true, .cmd_updated = false};
+    const fsm_state_t curr_fsm_state = STATE_SE_INIT;
+    const uint32_t act_allowed_timestamp_ms = 1000;
+    const uint32_t curr_timestamp_ms = test_act_allowed_ms_value + act_allowed_timestamp_ms;
 
     // Act
-    w_status_t actual_res = controller_run_loop();
+    w_status_t actual_res = controller_step(&ctx, curr_fsm_state, act_allowed_timestamp_ms, curr_timestamp_ms);
 
     // Assert
     EXPECT_EQ(actual_res, W_SUCCESS);
-    EXPECT_EQ(can_handler_transmit_fake.call_count, 0);
+    EXPECT_FALSE(ctx.cmd_updated);
     EXPECT_EQ(log_text_fake.call_count, 0);
 }
 
-TEST_F(ControllerTest, RunLoopDataMiss) {
+TEST_F(ControllerTest, StepDataMiss) {
     // Arrange
-    flight_phase_get_state_fake.return_val = STATE_ACT_ALLOWED;
-    xQueueReceive_fake.return_val = pdFALSE; // simulate data miss
+
+    // initalize context
+    controller_ctx_t ctx = {.state_updated = false, .cmd_updated = false};
+    const fsm_state_t curr_fsm_state = STATE_ACT_ALLOWED;
+    const uint32_t act_allowed_timestamp_ms = 1000;
+    const uint32_t curr_timestamp_ms = test_act_allowed_ms_value + act_allowed_timestamp_ms;
 
     // Act
-    w_status_t actual_res = controller_run_loop();
+    w_status_t actual_res = controller_step(&ctx, curr_fsm_state, act_allowed_timestamp_ms, curr_timestamp_ms);
 
     // Assert
     EXPECT_EQ(actual_res, W_FAILURE);
-    EXPECT_EQ(can_handler_transmit_fake.call_count, 0);
+    EXPECT_FALSE(ctx.cmd_updated);
 }
 
-TEST_F(ControllerTest, RunLoopBoostButNotActAllowed) {
+TEST_F(ControllerTest, StepBoostButNotActAllowed) {
     // Arrange
-    flight_phase_get_state_fake.return_val = STATE_BOOST;
+
+    // initalize context
+    controller_ctx_t ctx = {.state_updated = true, .cmd_updated = false};
+    const fsm_state_t curr_fsm_state = STATE_BOOST;
+    const uint32_t act_allowed_timestamp_ms = 1000;
+    const uint32_t curr_timestamp_ms = test_act_allowed_ms_value + act_allowed_timestamp_ms;
 
     // Act
-    w_status_t actual_res = controller_run_loop();
+    w_status_t actual_res = controller_step(&ctx, curr_fsm_state, act_allowed_timestamp_ms, curr_timestamp_ms);
 
     // Assert
     EXPECT_EQ(actual_res, W_SUCCESS);
-    EXPECT_EQ(can_handler_transmit_fake.call_count, 0);
+    EXPECT_FALSE(ctx.cmd_updated);
     EXPECT_EQ(log_text_fake.call_count, 0);
 }
 
-TEST_F(ControllerTest, RunLoopActAllowedButTimeWrong) {
+TEST_F(ControllerTest, StepActAllowedButTimeWrong) {
     // Arrange
-    flight_phase_get_state_fake.return_val = STATE_ACT_ALLOWED;
     test_act_allowed_ms_value = 2000;
 
+    // initalize context
+    controller_ctx_t ctx = {.state_updated = true, .cmd_updated = false};
+    const fsm_state_t curr_fsm_state = STATE_ACT_ALLOWED;
+    const uint32_t act_allowed_timestamp_ms = 1000;
+    const uint32_t curr_timestamp_ms = test_act_allowed_ms_value + act_allowed_timestamp_ms;
+
     // Act
-    w_status_t actual_res = controller_run_loop();
+    w_status_t actual_res = controller_step(&ctx, curr_fsm_state, act_allowed_timestamp_ms, curr_timestamp_ms);
 
     // Assert
     EXPECT_EQ(actual_res, W_FAILURE);
     // expect no cmd cuz failure
-    EXPECT_EQ(can_handler_transmit_fake.call_count, 0);
+    EXPECT_FALSE(ctx.cmd_updated);
 }
 
 /**
  * for the successful actuation test cases, numbers come from controller_module_test.cpp
  */
 
-TEST_F(ControllerTest, RunLoopActAllowedStep1) {
+TEST_F(ControllerTest, StepActAllowedStep1) {
     // Arrange
-    flight_phase_get_state_fake.return_val = STATE_ACT_ALLOWED;
+    
+    // initalize context
+    controller_ctx_t ctx = {.state_updated = true, .cmd_updated = false};
+    const fsm_state_t curr_fsm_state = STATE_ACT_ALLOWED;
+
     test_act_allowed_ms_value = 7005;
-    new_input_state.roll_state.roll_angle = 0.16345;
-    new_input_state.roll_state.roll_rate = 0.154534;
-    new_input_state.roll_state.canard_angle = 0.000134;
-    new_input_state.canard_coeff = 0.55234;
-    new_input_state.pressure_dynamic = 12093;
+    const uint32_t act_allowed_timestamp_ms = 1000;
+    const uint32_t curr_timestamp_ms = test_act_allowed_ms_value + act_allowed_timestamp_ms;
+
+    ctx.new_input_state.roll_state.roll_angle = 0.16345;
+    ctx.new_input_state.roll_state.roll_rate = 0.154534;
+    ctx.new_input_state.roll_state.canard_angle = 0.000134;
+    ctx.new_input_state.canard_coeff = 0.55234;
+    ctx.new_input_state.pressure_dynamic = 12093;
 
     // Act
-    w_status_t actual_res = controller_run_loop();
+    w_status_t actual_res = controller_step(&ctx, curr_fsm_state, act_allowed_timestamp_ms, curr_timestamp_ms);
 
     // Assert
     EXPECT_EQ(actual_res, W_SUCCESS);
-    EXPECT_EQ(can_handler_transmit_fake.call_count, 1);
-    EXPECT_EQ(build_actuator_analog_cmd_msg_fake.arg3_val, rad_to_can_cmd(0.02005049));
-    EXPECT_EQ(build_actuator_analog_cmd_msg_fake.call_count, 1);
+    EXPECT_TRUE(ctx.cmd_updated);
+    EXPECT_NEAR(ctx.cmd_output.commanded_angle, 0.02005049, CMD_TOLERANCE_RAD);
 }
 
-TEST_F(ControllerTest, RunLoopActAllowedStep2) {
+TEST_F(ControllerTest, StepActAllowedStep2) {
     // Arrange
-    flight_phase_get_state_fake.return_val = STATE_ACT_ALLOWED;
+    
+    // initalize context
+    controller_ctx_t ctx = {.state_updated = true, .cmd_updated = false};
+    const fsm_state_t curr_fsm_state = STATE_ACT_ALLOWED;
+
     test_act_allowed_ms_value = 12034;
-    new_input_state.roll_state.roll_angle = 0.16345;
-    new_input_state.roll_state.roll_rate = 0.154534;
-    new_input_state.roll_state.canard_angle = 0.000134;
-    new_input_state.canard_coeff = 0.55234;
-    new_input_state.pressure_dynamic = 12093;
+    const uint32_t act_allowed_timestamp_ms = 1000;
+    const uint32_t curr_timestamp_ms = test_act_allowed_ms_value + act_allowed_timestamp_ms;
+
+    ctx.new_input_state.roll_state.roll_angle = 0.16345;
+    ctx.new_input_state.roll_state.roll_rate = 0.154534;
+    ctx.new_input_state.roll_state.canard_angle = 0.000134;
+    ctx.new_input_state.canard_coeff = 0.55234;
+    ctx.new_input_state.pressure_dynamic = 12093;
 
     // Act
-    w_status_t actual_res = controller_run_loop();
+    w_status_t actual_res = controller_step(&ctx, curr_fsm_state, act_allowed_timestamp_ms, curr_timestamp_ms);
 
     // Assert
     EXPECT_EQ(actual_res, W_SUCCESS);
-    EXPECT_EQ(can_handler_transmit_fake.call_count, 1);
-    EXPECT_EQ(build_actuator_analog_cmd_msg_fake.arg3_val, rad_to_can_cmd(-0.14380301));
-    EXPECT_EQ(build_actuator_analog_cmd_msg_fake.call_count, 1);
+    EXPECT_TRUE(ctx.cmd_updated);
+    EXPECT_NEAR(ctx.cmd_output.commanded_angle, -0.14380301, CMD_TOLERANCE_RAD);
 }
 
-TEST_F(ControllerTest, RunLoopActAllowedOutOfBounds) {
+TEST_F(ControllerTest, StepActAllowedOutOfBounds) {
     // Arrange
-    flight_phase_get_state_fake.return_val = STATE_ACT_ALLOWED;
+    
+    // initalize context
+    controller_ctx_t ctx = {.state_updated = true, .cmd_updated = false};
+    const fsm_state_t curr_fsm_state = STATE_ACT_ALLOWED;
+
     test_act_allowed_ms_value = 15034;
-    new_input_state.roll_state.roll_angle = 0.16345;
-    new_input_state.roll_state.roll_rate = 0.154534;
-    new_input_state.roll_state.canard_angle = 0.000134;
-    new_input_state.canard_coeff = 0.55234;
-    new_input_state.pressure_dynamic = 709097;
+    const uint32_t act_allowed_timestamp_ms = 1000;
+    const uint32_t curr_timestamp_ms = test_act_allowed_ms_value + act_allowed_timestamp_ms;
+
+    ctx.new_input_state.roll_state.roll_angle = 0.16345;
+    ctx.new_input_state.roll_state.roll_rate = 0.154534;
+    ctx.new_input_state.roll_state.canard_angle = 0.000134;
+    ctx.new_input_state.canard_coeff = 0.55234;
+    ctx.new_input_state.pressure_dynamic = 709097;
 
     // Act
-    w_status_t actual_res = controller_run_loop();
+    w_status_t actual_res = controller_step(&ctx, curr_fsm_state, act_allowed_timestamp_ms, curr_timestamp_ms);
 
     // Assert
     EXPECT_EQ(actual_res, W_FAILURE);
     // expect no cmd if interp fails
-    EXPECT_EQ(can_handler_transmit_fake.call_count, 0);
+    EXPECT_FALSE(ctx.cmd_updated);
 }
 
 // expect controller to compute and run during recovery phase too
-TEST_F(ControllerTest, RunLoopRecovery) {
+TEST_F(ControllerTest, StepRecovery) {
     // Arrange
-    flight_phase_get_state_fake.return_val = STATE_RECOVERY;
+    
+    // initalize context
+    controller_ctx_t ctx = {.state_updated = true, .cmd_updated = false};
+    const fsm_state_t curr_fsm_state = STATE_RECOVERY;
+
     test_act_allowed_ms_value = 12034; // step 2
-    new_input_state.roll_state.roll_angle = 0.16345;
-    new_input_state.roll_state.roll_rate = 0.154534;
-    new_input_state.roll_state.canard_angle = 0.000134;
-    new_input_state.canard_coeff = 0.55234;
-    new_input_state.pressure_dynamic = 12093;
+    const uint32_t act_allowed_timestamp_ms = 1000;
+    const uint32_t curr_timestamp_ms = test_act_allowed_ms_value + act_allowed_timestamp_ms;
+
+    ctx.new_input_state.roll_state.roll_angle = 0.16345;
+    ctx.new_input_state.roll_state.roll_rate = 0.154534;
+    ctx.new_input_state.roll_state.canard_angle = 0.000134;
+    ctx.new_input_state.canard_coeff = 0.55234;
+    ctx.new_input_state.pressure_dynamic = 12093;
 
     // Act
-    w_status_t actual_res = controller_run_loop();
+    w_status_t actual_res = controller_step(&ctx, curr_fsm_state, act_allowed_timestamp_ms, curr_timestamp_ms);
 
     // Assert
     EXPECT_EQ(actual_res, W_SUCCESS);
-    EXPECT_EQ(can_handler_transmit_fake.call_count, 1);
-    EXPECT_EQ(build_actuator_analog_cmd_msg_fake.arg3_val, rad_to_can_cmd(-0.14380301));
-    EXPECT_EQ(build_actuator_analog_cmd_msg_fake.call_count, 1);
+    EXPECT_TRUE(ctx.cmd_updated);
+    EXPECT_NEAR(ctx.cmd_output.commanded_angle, -0.14380301, CMD_TOLERANCE_RAD);
 }

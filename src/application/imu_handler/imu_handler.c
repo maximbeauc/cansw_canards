@@ -226,6 +226,7 @@ w_status_t imu_handler_init(void) {
  * @return Status of the execution
  */
 w_status_t imu_handler_get_fresh_meas(uint32_t loop_count, all_sensors_data_t *output) {
+	(void)output;
 	all_sensors_data_t imu_data = {.pololu = {.is_dead = false}, .movella = {.is_dead = false}};
 	raw_pololu_data_t raw_pololu_data = {0};
 	uint32_t current_time_ms;

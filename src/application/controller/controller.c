@@ -89,7 +89,8 @@ w_status_t controller_step(controller_ctx_t *context, const fsm_state_t curr_fsm
 			}
 
 			// run controller module
-			status |= controller_module(context->new_state, act_allowed_ms, &new_cmd, &ref_signal);
+			status |=
+				controller_module(context->new_input_state, act_allowed_ms, &new_cmd, &ref_signal);
 
 			// send cmd if we can
 			if (W_SUCCESS == status) {
@@ -97,6 +98,7 @@ w_status_t controller_step(controller_ctx_t *context, const fsm_state_t curr_fsm
 				// TODO: currently assuming the timer didn't fail, this should be reevaluated
 				context->cmd_output.commanded_angle = new_cmd;
 				context->cmd_output.timestamp = curr_timestamp_ms;
+				context->cmd_updated = true;
 
 				log_container.controller.cmd_angle = (float)new_cmd;
 				log_container.controller.ref_signal = ref_signal;
@@ -105,6 +107,7 @@ w_status_t controller_step(controller_ctx_t *context, const fsm_state_t curr_fsm
 					status |= W_FAILURE;
 				}
 			} else {
+				context->cmd_updated = false;
 				// if anything fails, send no cmd. MCB failsafes to 0 after some ms of silence
 				log_text(LOG_WAIT_MS, "cntl act", "fail; send no cmd");
 			}
