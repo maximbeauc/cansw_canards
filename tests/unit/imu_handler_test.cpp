@@ -20,7 +20,6 @@ extern "C" {
 #include "drivers/timer/timer.h"
 #include "task.h"
 #include "third_party/rocketlib/include/common.h"
-#include "queue.h"
 
 
     // Define all fake functions for IMUs using FFF
@@ -175,8 +174,6 @@ protected:
 		RESET_FAKE(build_baro_data_msg);
 		RESET_FAKE(movella_init);
 		RESET_FAKE(movella_get_data);
-        RESET_FAKE(xQueuePeek);
-        RESET_FAKE(xQueueCreate);
 
 		RESET_FAKE(estimator_update_imu_data);
 		RESET_FAKE(timer_get_ms);
@@ -195,28 +192,18 @@ protected:
 		memset(&captured_data, 0, sizeof(captured_data));
 
 		// Initialize IMU handler before each test
-		xQueueCreate_fake.return_val = (QueueHandle_t)1;
 		imu_handler_init();
 
       
 		// reset log test and queuecreate as this point so all of the logs that are captured are from this point on
 		RESET_FAKE(log_text);
-		RESET_FAKE(xQueueCreate);
 
 	}
 };
 
 // Tests for initialization
 TEST_F(ImuHandlerTest, InitSuccess) {
-	xQueueCreate_fake.return_val = (QueueHandle_t)1;
-	
 	EXPECT_EQ(W_SUCCESS, imu_handler_init());
-}
-
-TEST_F(ImuHandlerTest, InitFailureAsQueueFailToCreate) {
-	xQueueCreate_fake.return_val =(QueueHandle_t)NULL;
-	
-	EXPECT_EQ(W_FAILURE, imu_handler_init());
 }
 
 // Test successful run with all IMUs working
@@ -522,7 +509,6 @@ TEST_F(ImuHandlerTest, GetFreshMeasWithEstimatorFailure) {
 
 TEST_F(ImuHandlerTest, ImuHandlerRun_CalibrationWarning) {
 	// Arrange
-	xQueueCreate_fake.return_val = (QueueHandle_t)1;
 	// Simulate uncalibrated orientation by setting the flag to failure
 	bool orientation_calibrated = false;
 
@@ -535,40 +521,4 @@ TEST_F(ImuHandlerTest, ImuHandlerRun_CalibrationWarning) {
 	EXPECT_STREQ(log_text_fake.arg2_history[0],
 				 "WARN: IMU orientation correction matrices not calibrated yet, using default "
 				 "orientation.");
-}
-
-TEST_F(ImuHandlerTest, ImuGetData_NullPointerReturnsInvalidParam) {
-	// Arrange - no setup needed since we're passing NULL
-	// Act
-	w_status_t status = imu_handler_get_data_for_flight_phase(NULL);
-
-	// Assert
-	EXPECT_EQ(status, W_INVALID_PARAM);
-	EXPECT_EQ(status, W_INVALID_PARAM);
-}
-
-TEST_F(ImuHandlerTest, ImuGetDataFailureAsNullptr) {
-	xQueuePeek_fake.return_val = pdPASS;
-	w_status_t status = imu_handler_get_data_for_flight_phase(NULL);
-
-	// Assert
-	EXPECT_EQ(status, W_INVALID_PARAM);
-}
-
-TEST_F(ImuHandlerTest, ImuGetDataFailureAsQueuePeakFail) {
-	xQueuePeek_fake.return_val = pdFAIL;
-	estimator_all_imus_input_t all_imu_data;
-	w_status_t status = imu_handler_get_data_for_flight_phase(&all_imu_data);
-
-	// Assert
-	EXPECT_EQ(status, W_FAILURE);
-}
-
-TEST_F(ImuHandlerTest, ImuGetDataSuccess) {
-	xQueuePeek_fake.return_val = pdPASS;
-	estimator_all_imus_input_t all_imu_data;
-	w_status_t status = imu_handler_get_data_for_flight_phase(&all_imu_data);
-
-	// Assert
-	EXPECT_EQ(status, W_SUCCESS);
 }

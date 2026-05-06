@@ -2,7 +2,6 @@
 
 #include "FreeRTOS.h"
 #include "task.h"
-#include "queue.h"
 
 #include "application/can_handler/can_handler.h"
 #include "application/estimator/estimator_types.h"
@@ -42,11 +41,6 @@ static const matrix3d_t g_pololu_upd_mat = {
 
 // set to true once calibrated, initialized to false to prevent use before calibration
 static bool orientation_calibrated = false;
-
-// TODO: function to be set by the calibration module to update the calibration matrices once
-// calibrated (low priority)
-
-static QueueHandle_t imu_data_mailbox = NULL;
 
 // Module state tracking
 typedef struct {
@@ -221,14 +215,6 @@ static w_status_t read_movella_imu(estimator_imu_measurement_t *imu_data) {
 w_status_t imu_handler_init(void) {
 	// TODO: poll all imus to make sure theyre initialized alr or smth
 
-	// Create mailbox queue for flight phase to read current data if needed
-	imu_data_mailbox = xQueueCreate(1, sizeof(estimator_all_imus_input_t));
-
-	if (NULL == imu_data_mailbox) {
-		log_text(1, "IMUHandler", "ERROR: IMU data mailbox not initialized.");
-		return W_FAILURE;
-	}
-
 	// Set initialized flag directly here instead of calling initialize_all_imus()
 	imu_handler_state.initialized = true;
 
@@ -354,33 +340,12 @@ w_status_t imu_handler_get_fresh_meas(uint32_t loop_count, all_sensors_data_t *o
 	// }
 
 	// update queue with current IMU data for flight phase to read
-	if (xQueueOverwrite(imu_data_mailbox, &imu_data) != pdPASS) {
-		log_text(1, "IMUHandler", "ERROR: IMU data mailbox overwrite failed.");
-	}
+	// now this is done by the updated output data
 
 	imu_handler_state.sample_count++;
 
 	// Return overall status
 	return status;
-}
-
-/**
- * @brief Public function to get the latest IMU data for use by the flight phase
- * @param all_imu_data Pointer to store the output data
- * @return Status of the execution
- */
-w_status_t imu_handler_get_data_for_flight_phase(estimator_all_imus_input_t *all_imu_data) {
-	if (NULL == all_imu_data) {
-		log_text(1, "IMUHandler", "ERROR: Get imu data failed - imu data cannot be null pointers.");
-		return W_INVALID_PARAM;
-	}
-
-	if (xQueuePeek(imu_data_mailbox, all_imu_data, 0) != pdPASS) {
-		log_text(1, "IMUHandler", "ERROR: Failed to get data from state mailbox.");
-		return W_FAILURE;
-	}
-
-	return W_SUCCESS;
 }
 
 /**
