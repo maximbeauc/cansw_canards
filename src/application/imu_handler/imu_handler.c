@@ -235,9 +235,17 @@ w_status_t imu_handler_init(void) {
  * @param loop_count Number of loops run, for CAN send rate limiting
  * @return Status of the execution
  */
-w_status_t imu_handler_get_fresh_meas(uint32_t loop_count, all_sensors_data_t *output) {
-	(void)output;
-	all_sensors_data_t imu_data = {.pololu = {.is_dead = false}, .movella = {.is_dead = false}};
+w_status_t imu_handler_get_fresh_meas(uint32_t loop_count, all_sensors_data_t *imu_output) {
+	if (NULL == imu_output) {
+		log_text(10, "IMUHandler", "ERROR: get fresh meas invalid output ptr.");
+		return W_INVALID_PARAM;
+	}
+
+	// is this even nesscary at all, since this assumes success before any process
+	// replacing original declaration
+	imu_output->movella.is_dead = false;
+	imu_output->pololu.is_dead = false;
+
 	raw_pololu_data_t raw_pololu_data = {0};
 	uint32_t current_time_ms;
 	w_status_t status = W_SUCCESS;
@@ -248,14 +256,15 @@ w_status_t imu_handler_get_fresh_meas(uint32_t loop_count, all_sensors_data_t *o
 	}
 	uint32_t now_ms = (uint32_t)current_time_ms;
 
+	// TODO: update this with new IMU for correct behaviour
 	// Set timestamps for all IMUs
 	// Note: All IMUs get the same timestamp intentionally for synchronization
-	imu_data.pololu.timestamp_imu_sec = ((float64_t)now_ms) / 1000.0;
-	imu_data.movella.timestamp_imu_sec = ((float64_t)now_ms) / 1000.0;
+	imu_output->pololu.timestamp_imu_sec = ((float64_t)now_ms) / 1000.0;
+	imu_output->movella.timestamp_imu_sec = ((float64_t)now_ms) / 1000.0;
 
 	// Read from all IMUs, including orientation correction
-	w_status_t pololu_status = read_pololu_imu(&imu_data.pololu, &raw_pololu_data);
-	w_status_t movella_status = read_movella_imu(&imu_data.movella);
+	w_status_t pololu_status = read_pololu_imu(&(imu_output->pololu), &raw_pololu_data);
+	w_status_t movella_status = read_movella_imu(&(imu_output->movella));
 
 	// If both IMUs fail, consider it a system-level failure
 	if ((W_FAILURE == pololu_status) && (W_FAILURE == movella_status)) {
@@ -271,46 +280,46 @@ w_status_t imu_handler_get_fresh_meas(uint32_t loop_count, all_sensors_data_t *o
 
 	log_data_container_t log_payload = {0}; //{.imu_reading = imu_data.movella};
 
-	log_payload.imu_reading_pt1.accelerometer.x = (float)imu_data.movella.accelerometer.x;
-	log_payload.imu_reading_pt1.accelerometer.y = (float)imu_data.movella.accelerometer.y;
-	log_payload.imu_reading_pt1.accelerometer.z = (float)imu_data.movella.accelerometer.z;
+	log_payload.imu_reading_pt1.accelerometer.x = (float)imu_output->movella.accelerometer.x;
+	log_payload.imu_reading_pt1.accelerometer.y = (float)imu_output->movella.accelerometer.y;
+	log_payload.imu_reading_pt1.accelerometer.z = (float)imu_output->movella.accelerometer.z;
 	log_data(1, LOG_TYPE_MOVELLA_READING_PT1, &log_payload);
 
-	log_payload.imu_reading_pt2.gyroscope.x = (float)imu_data.movella.gyroscope.x;
-	log_payload.imu_reading_pt2.gyroscope.y = (float)imu_data.movella.gyroscope.y;
-	log_payload.imu_reading_pt2.gyroscope.z = (float)imu_data.movella.gyroscope.z;
+	log_payload.imu_reading_pt2.gyroscope.x = (float)imu_output->movella.gyroscope.x;
+	log_payload.imu_reading_pt2.gyroscope.y = (float)imu_output->movella.gyroscope.y;
+	log_payload.imu_reading_pt2.gyroscope.z = (float)imu_output->movella.gyroscope.z;
 	log_data(1, LOG_TYPE_MOVELLA_READING_PT2, &log_payload);
 
-	log_payload.imu_reading_pt3.magnetometer.x = (float)imu_data.movella.magnetometer.x;
-	log_payload.imu_reading_pt3.magnetometer.y = (float)imu_data.movella.magnetometer.y;
-	log_payload.imu_reading_pt3.magnetometer.z = (float)imu_data.movella.magnetometer.z;
+	log_payload.imu_reading_pt3.magnetometer.x = (float)imu_output->movella.magnetometer.x;
+	log_payload.imu_reading_pt3.magnetometer.y = (float)imu_output->movella.magnetometer.y;
+	log_payload.imu_reading_pt3.magnetometer.z = (float)imu_output->movella.magnetometer.z;
 
-	log_payload.imu_reading_pt3.barometer = imu_data.movella.barometer;
+	log_payload.imu_reading_pt3.barometer = imu_output->movella.barometer;
 	log_payload.imu_reading_pt3.timestamp_imu_ms =
-		(uint32_t)(imu_data.movella.timestamp_imu_sec * 1000);
-	log_payload.imu_reading_pt3.is_dead = imu_data.movella.is_dead;
+		(uint32_t)(imu_output->movella.timestamp_imu_sec * 1000);
+	log_payload.imu_reading_pt3.is_dead = imu_output->movella.is_dead;
 	log_data(1, LOG_TYPE_MOVELLA_READING_PT3, &log_payload);
 
 	// Log polulu data as seperate messages
 
-	log_payload.imu_reading_pt1.accelerometer.x = (float)imu_data.pololu.accelerometer.x;
-	log_payload.imu_reading_pt1.accelerometer.y = (float)imu_data.pololu.accelerometer.y;
-	log_payload.imu_reading_pt1.accelerometer.z = (float)imu_data.pololu.accelerometer.z;
+	log_payload.imu_reading_pt1.accelerometer.x = (float)imu_output->pololu.accelerometer.x;
+	log_payload.imu_reading_pt1.accelerometer.y = (float)imu_output->pololu.accelerometer.y;
+	log_payload.imu_reading_pt1.accelerometer.z = (float)imu_output->pololu.accelerometer.z;
 	log_data(1, LOG_TYPE_POLOLU_READING_PT1, &log_payload);
 
-	log_payload.imu_reading_pt2.gyroscope.x = (float)imu_data.pololu.gyroscope.x;
-	log_payload.imu_reading_pt2.gyroscope.y = (float)imu_data.pololu.gyroscope.y;
-	log_payload.imu_reading_pt2.gyroscope.z = (float)imu_data.pololu.gyroscope.z;
+	log_payload.imu_reading_pt2.gyroscope.x = (float)imu_output->pololu.gyroscope.x;
+	log_payload.imu_reading_pt2.gyroscope.y = (float)imu_output->pololu.gyroscope.y;
+	log_payload.imu_reading_pt2.gyroscope.z = (float)imu_output->pololu.gyroscope.z;
 	log_data(1, LOG_TYPE_POLOLU_READING_PT2, &log_payload);
 
-	log_payload.imu_reading_pt3.magnetometer.x = (float)imu_data.pololu.magnetometer.x;
-	log_payload.imu_reading_pt3.magnetometer.y = (float)imu_data.pololu.magnetometer.y;
-	log_payload.imu_reading_pt3.magnetometer.z = (float)imu_data.pololu.magnetometer.z;
+	log_payload.imu_reading_pt3.magnetometer.x = (float)imu_output->pololu.magnetometer.x;
+	log_payload.imu_reading_pt3.magnetometer.y = (float)imu_output->pololu.magnetometer.y;
+	log_payload.imu_reading_pt3.magnetometer.z = (float)imu_output->pololu.magnetometer.z;
 
-	log_payload.imu_reading_pt3.barometer = imu_data.pololu.barometer;
+	log_payload.imu_reading_pt3.barometer = imu_output->pololu.barometer;
 	log_payload.imu_reading_pt3.timestamp_imu_ms =
-		(uint32_t)(imu_data.pololu.timestamp_imu_sec * 1000);
-	log_payload.imu_reading_pt3.is_dead = imu_data.pololu.is_dead;
+		(uint32_t)(imu_output->pololu.timestamp_imu_sec * 1000);
+	log_payload.imu_reading_pt3.is_dead = imu_output->pololu.is_dead;
 	log_data(1, LOG_TYPE_POLOLU_READING_PT3, &log_payload);
 
 	// Log raw pololu data
@@ -329,15 +338,6 @@ w_status_t imu_handler_get_fresh_meas(uint32_t loop_count, all_sensors_data_t *o
 			log_text(0, "imuhandler", "WARN: raw log to CAN fail");
 		}
 	}
-
-	// TODO: redesign to work to update data into output struct
-	// // Send data to estimator with status flags
-	// w_status_t estimator_status = estimator_update_imu_data(&imu_data);
-	// if (W_SUCCESS != estimator_status) {
-	// 	status = estimator_status;
-	// 	imu_handler_state.error_count++;
-	// 	log_text(1, "IMUHandler", "ERROR: estimator update fail (status: %d).", estimator_status);
-	// }
 
 	// update queue with current IMU data for flight phase to read
 	// now this is done by the updated output data

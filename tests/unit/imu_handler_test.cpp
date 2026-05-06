@@ -238,24 +238,24 @@ TEST_F(ImuHandlerTest, GetFreshMeasSuccessful) {
 	EXPECT_EQ(1, movella_get_data_fake.call_count);
 
     // Verify timestamps
-    EXPECT_EQ(1, captured_data.pololu.timestamp_imu_sec); // timer return 1000 ms 
-    EXPECT_EQ(1, captured_data.movella.timestamp_imu_sec); // timer return 1000 ms 
+    EXPECT_EQ(1, output.pololu.timestamp_imu_sec); // timer return 1000 ms 
+    EXPECT_EQ(1, output.movella.timestamp_imu_sec); // timer return 1000 ms 
 
 	// Verify data values for Pololu
-	assert_vec_eq(EXPECTED_ACC_POLOLU, captured_data.pololu.accelerometer, tolerance);
-	assert_vec_eq(EXPECTED_GYRO_POLOLU, captured_data.pololu.gyroscope, tolerance);
-	assert_vec_eq(EXPECTED_MAG_POLOLU, captured_data.pololu.magnetometer, tolerance);
-	EXPECT_NEAR(captured_data.pololu.barometer, EXPECTED_BARO, abs(EXPECTED_BARO * tolerance));
+	assert_vec_eq(EXPECTED_ACC_POLOLU, output.pololu.accelerometer, tolerance);
+	assert_vec_eq(EXPECTED_GYRO_POLOLU, output.pololu.gyroscope, tolerance);
+	assert_vec_eq(EXPECTED_MAG_POLOLU, output.pololu.magnetometer, tolerance);
+	EXPECT_NEAR(output.pololu.barometer, EXPECTED_BARO, abs(EXPECTED_BARO * tolerance));
 
 	// Verify Movella data
-	assert_vec_eq(EXPECTED_ACC_MOVELLA, captured_data.movella.accelerometer, tolerance);
-	assert_vec_eq(EXPECTED_GYRO_MOVELLA, captured_data.movella.gyroscope, tolerance);
-	assert_vec_eq(EXPECTED_MAG_MOVELLA, captured_data.movella.magnetometer, tolerance);
-	EXPECT_NEAR(captured_data.movella.barometer, EXPECTED_BARO, abs(EXPECTED_BARO * tolerance));
+	assert_vec_eq(EXPECTED_ACC_MOVELLA, output.movella.accelerometer, tolerance);
+	assert_vec_eq(EXPECTED_GYRO_MOVELLA, output.movella.gyroscope, tolerance);
+	assert_vec_eq(EXPECTED_MAG_MOVELLA, output.movella.magnetometer, tolerance);
+	EXPECT_NEAR(output.movella.barometer, EXPECTED_BARO, abs(EXPECTED_BARO * tolerance));
 
 	// Verify is_dead flags
-	EXPECT_FALSE(captured_data.pololu.is_dead);
-	EXPECT_FALSE(captured_data.movella.is_dead);
+	EXPECT_FALSE(output.pololu.is_dead);
+	EXPECT_FALSE(output.movella.is_dead);
 }
 
 // Test with failed Polulu IMU
@@ -283,14 +283,14 @@ TEST_F(ImuHandlerTest, GetFreshMeasWithPoluluFailure) {
 	EXPECT_EQ(W_SUCCESS, result);
 
 	// Verify Polulu data is marked as dead. doesnt matter what the data is
-	EXPECT_TRUE(captured_data.pololu.is_dead);
+	EXPECT_TRUE(output.pololu.is_dead);
 
 	// Verify Movella data is still correct and not dead
-	assert_vec_eq(EXPECTED_ACC_MOVELLA, captured_data.movella.accelerometer, tolerance);
-	assert_vec_eq(EXPECTED_GYRO_MOVELLA, captured_data.movella.gyroscope, tolerance);
-	assert_vec_eq(EXPECTED_MAG_MOVELLA, captured_data.movella.magnetometer, tolerance);
-	EXPECT_NEAR(captured_data.movella.barometer, EXPECTED_BARO, abs(EXPECTED_BARO * tolerance));
-	EXPECT_FALSE(captured_data.movella.is_dead);
+	assert_vec_eq(EXPECTED_ACC_MOVELLA, output.movella.accelerometer, tolerance);
+	assert_vec_eq(EXPECTED_GYRO_MOVELLA, output.movella.gyroscope, tolerance);
+	assert_vec_eq(EXPECTED_MAG_MOVELLA, output.movella.magnetometer, tolerance);
+	EXPECT_NEAR(output.movella.barometer, EXPECTED_BARO, abs(EXPECTED_BARO * tolerance));
+	EXPECT_FALSE(output.movella.is_dead);
 }
 
 // Test with failed Movella IMU
@@ -318,14 +318,14 @@ TEST_F(ImuHandlerTest, GetFreshMeasWithMovellaFailure) {
 	EXPECT_EQ(W_SUCCESS, result);
 
 	// Verify Movella data is marked as dead. data doesnt matter if dead
-	EXPECT_TRUE(captured_data.movella.is_dead);
+	EXPECT_TRUE(output.movella.is_dead);
 
 	// Verify Polulu data is still correct and not dead
-	assert_vec_eq(EXPECTED_ACC_POLOLU, captured_data.pololu.accelerometer, tolerance);
-	assert_vec_eq(EXPECTED_GYRO_POLOLU, captured_data.pololu.gyroscope, tolerance);
-	assert_vec_eq(EXPECTED_MAG_POLOLU, captured_data.pololu.magnetometer, tolerance);
-	EXPECT_NEAR(captured_data.pololu.barometer, EXPECTED_BARO, abs(EXPECTED_BARO * tolerance));
-	EXPECT_FALSE(captured_data.pololu.is_dead);
+	assert_vec_eq(EXPECTED_ACC_POLOLU, output.pololu.accelerometer, tolerance);
+	assert_vec_eq(EXPECTED_GYRO_POLOLU, output.pololu.gyroscope, tolerance);
+	assert_vec_eq(EXPECTED_MAG_POLOLU, output.pololu.magnetometer, tolerance);
+	EXPECT_NEAR(output.pololu.barometer, EXPECTED_BARO, abs(EXPECTED_BARO * tolerance));
+	EXPECT_FALSE(output.pololu.is_dead);
 }
 
 // Test with all IMUs failing
@@ -351,8 +351,8 @@ TEST_F(ImuHandlerTest, GetFreshMeasWithAllImusFailure) {
 	EXPECT_EQ(W_FAILURE, result);
 
 	// Verify all IMU data is marked as dead. data doesnt matter
-	EXPECT_TRUE(captured_data.pololu.is_dead);
-	EXPECT_TRUE(captured_data.movella.is_dead);
+	EXPECT_TRUE(output.pololu.is_dead);
+	EXPECT_TRUE(output.movella.is_dead);
 }
 
 // Test behavior when timer fails
@@ -379,17 +379,17 @@ TEST_F(ImuHandlerTest, GetFreshMeasWithTimerFailure) {
 	EXPECT_EQ(W_SUCCESS, result);
 
     // Verify timestamps are zero
-    EXPECT_EQ(0, captured_data.pololu.timestamp_imu_sec);
-    EXPECT_EQ(0, captured_data.movella.timestamp_imu_sec);
+    EXPECT_EQ(0, output.pololu.timestamp_imu_sec);
+    EXPECT_EQ(0, output.movella.timestamp_imu_sec);
 
 	// But IMU data should still be valid and not dead
-	assert_vec_eq(EXPECTED_ACC_POLOLU, captured_data.pololu.accelerometer, tolerance);
-	EXPECT_FALSE(captured_data.pololu.is_dead);
-	assert_vec_eq(EXPECTED_ACC_MOVELLA, captured_data.movella.accelerometer, tolerance);
-	EXPECT_FALSE(captured_data.movella.is_dead);
+	assert_vec_eq(EXPECTED_ACC_POLOLU, output.pololu.accelerometer, tolerance);
+	EXPECT_FALSE(output.pololu.is_dead);
+	assert_vec_eq(EXPECTED_ACC_MOVELLA, output.movella.accelerometer, tolerance);
+	EXPECT_FALSE(output.movella.is_dead);
 }
 
-// Test behavior when estimator update fails
+// Test behavior with invalid output ptr
 TEST_F(ImuHandlerTest, GetFreshMeasWithEstimatorFailure) {
 	// Set up all IMUs for success
 	// altimu_get_acc_data_fake.custom_fake = altimu_get_acc_data_success;
@@ -408,16 +408,10 @@ TEST_F(ImuHandlerTest, GetFreshMeasWithEstimatorFailure) {
 	all_sensors_data_t output = {0};
 
 	// Run the function under test with loop_count = 1
-	w_status_t result = imu_handler_get_fresh_meas(1, &output);
+	w_status_t result = imu_handler_get_fresh_meas(1, NULL);
 
 	// Function should return the failure from estimator
-	EXPECT_EQ(W_FAILURE, result);
-
-	// Verify IMU data was collected normally despite estimator failure
-	EXPECT_EQ(1, altimu_get_gyro_acc_data_fake.call_count);
-	EXPECT_EQ(1, altimu_get_mag_data_fake.call_count);
-	EXPECT_EQ(1, altimu_get_baro_data_fake.call_count);
-	EXPECT_EQ(1, movella_get_data_fake.call_count);
+	EXPECT_EQ(W_INVALID_PARAM, result);
 }
 
 // Revive once this has been reimplmented
