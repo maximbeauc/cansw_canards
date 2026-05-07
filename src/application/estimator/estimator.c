@@ -9,7 +9,6 @@
 
 #include "application/can_handler/can_handler.h"
 #include "application/controller/controller_types.h"
-#include "application/controller/controller.h"
 #include "application/estimator/estimator.h"
 #include "application/estimator/estimator_internal.h"
 #include "application/estimator/estimator_module.h"
@@ -91,9 +90,11 @@ w_status_t estimator_init(void) {
 
 w_status_t estimator_step(estimator_module_ctx_t *ctx, const fsm_state_t curr_fsm_state,
 						  const all_sensors_data_t *p_latest_imu_data,
-						  controller_ctx_t *p_controller_context, uint32_t loop_count) {
+						  controller_input_t *p_controller_input,
+						  controller_output_t *p_controller_output, uint32_t loop_count) {
 	// check if all of the pointers are valid before proceeding
-	if ((NULL == ctx) || (NULL == p_latest_imu_data) || (NULL == p_controller_context)) {
+	if ((NULL == ctx) || (NULL == p_latest_imu_data) || (NULL == p_controller_input) ||
+		(NULL == p_controller_output)) {
 		log_text(10, "Estimator", "ERROR: invalid ptrs");
 		return W_INVALID_PARAM;
 	}
@@ -137,8 +138,8 @@ w_status_t estimator_step(estimator_module_ctx_t *ctx, const fsm_state_t curr_fs
 	// to 0
 	if ((STATE_RECOVERY == curr_fsm_state) || (STATE_ACT_ALLOWED == curr_fsm_state)) {
 		// this way the command angle would be only set to non 0 if in the right state
-		latest_controller_cmd.commanded_angle = p_controller_context->cmd_output.commanded_angle;
-		latest_controller_cmd.timestamp = p_controller_context->cmd_output.timestamp;
+		latest_controller_cmd.commanded_angle = p_controller_output->commanded_angle;
+		latest_controller_cmd.timestamp = p_controller_output->timestamp;
 	}
 
 	// get current time. as failsafe: default to 5ms period
@@ -170,8 +171,7 @@ w_status_t estimator_step(estimator_module_ctx_t *ctx, const fsm_state_t curr_fs
 		status = W_FAILURE;
 	} else {
 		// just have the state edited directly
-		if (estimator_module(
-				&estimator_input, curr_fsm_state, ctx, &(p_controller_context->new_input_state)) !=
+		if (estimator_module(&estimator_input, curr_fsm_state, ctx, p_controller_input) !=
 			W_SUCCESS) {
 			log_text(10, "Estimator", "estimator_module fail");
 			status = W_FAILURE;
@@ -182,8 +182,11 @@ w_status_t estimator_step(estimator_module_ctx_t *ctx, const fsm_state_t curr_fs
 	// continue actuating after recovery too to avoid timer lockout issues
 	if (W_SUCCESS == status) {
 		if ((STATE_RECOVERY == curr_fsm_state) || (STATE_ACT_ALLOWED == curr_fsm_state)) {
-			p_controller_context->state_updated = true;
+			p_controller_input->state_updated = true;
 		}
+	} else {
+		// this is if the estimator failed
+		p_controller_input->state_updated = false;
 	}
 
 	// ------- do sdcard data logging at 200hz (only after pad filter starts) -------
@@ -192,13 +195,11 @@ w_status_t estimator_step(estimator_module_ctx_t *ctx, const fsm_state_t curr_fs
 		log_data_container_t log_payload = {0};
 
 		log_payload.controller_input_t.roll_angle =
-			(float)p_controller_context->new_input_state.roll_state.roll_angle;
-		log_payload.controller_input_t.roll_rate =
-			(float)p_controller_context->new_input_state.roll_state.roll_rate;
-		log_payload.controller_input_t.canard_coeff =
-			(float)p_controller_context->new_input_state.canard_coeff;
+			(float)p_controller_input->roll_state.roll_angle;
+		log_payload.controller_input_t.roll_rate = (float)p_controller_input->roll_state.roll_rate;
+		log_payload.controller_input_t.canard_coeff = (float)p_controller_input->canard_coeff;
 		log_payload.controller_input_t.pressure_dynamic =
-			(float)p_controller_context->new_input_state.pressure_dynamic;
+			(float)p_controller_input->pressure_dynamic;
 
 		log_data(1, LOG_TYPE_CONTROLLER_INPUT, &log_payload);
 

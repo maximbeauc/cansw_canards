@@ -5,10 +5,6 @@
 #define FSM_TYPES_H
 
 /**
- * context/memory type structs
- */
-
-/**
  * data storage (format) structs/enum
  */
 

@@ -5,10 +5,6 @@
 #define FLIGHT_PHASE_TYPES_H
 
 /**
- * context/memory type structs
- */
-
-/**
  * data storage (format) structs/enum
  */
 

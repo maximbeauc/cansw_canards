@@ -40,15 +40,6 @@ typedef struct {
 typedef struct controller_ctx_t {
 	controller_output_t cmd_output;
 	controller_input_t new_input_state;
-
-	// this is done to make sure only under a few state are the new cmd actually going to be
-	// indicated as usable by the system (this is to keep in structure with last years system,
-	// though this seem very redundent)
-	bool state_updated;
-
-	bool cmd_updated; // this has now going to be used to let motor know if the there was a command
-					  // update or not (this should be set false by the motor once read)
-
 	uint32_t last_run_ms; // last time the controller did a full loop. use for rate-limiting
 } controller_ctx_t;
 

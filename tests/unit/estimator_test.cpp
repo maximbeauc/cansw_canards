@@ -175,10 +175,11 @@ TEST_F(EstimatorTest, EstimatorStepPadStateNominal) {
     estimator_module_ctx_t ctx = { 0 };
     fsm_state_t flight_phase_state = STATE_IDLE;
     all_sensors_data_t all_sensor_input = {0};
-    controller_ctx_t conrtoller_ctx = {0};
+    controller_input_t new_input_state = {0};
+    controller_output_t cmd_output = {0};
 
     // Act
-    w_status_t actual_ret = estimator_step(&ctx, flight_phase_state, &all_sensor_input, &conrtoller_ctx, 0);
+    w_status_t actual_ret = estimator_step(&ctx, flight_phase_state, &all_sensor_input, &new_input_state, &cmd_output, 0);
 
     // Assert
     // expect do absolutely nothing!!!
@@ -196,10 +197,11 @@ TEST_F(EstimatorTest, EstimatorStepInitStateNominalZeroData) {
     estimator_module_ctx_t ctx = { 0 };
     fsm_state_t flight_phase_state = STATE_SE_INIT;
     all_sensors_data_t all_sensor_input = {0};
-    controller_ctx_t conrtoller_ctx = {0};
+    controller_input_t new_input_state = {0};
+    controller_output_t cmd_output = {0};
 
     // Act
-    w_status_t actual_ret = estimator_step(&ctx, flight_phase_state, &all_sensor_input, &conrtoller_ctx, 0);
+    w_status_t actual_ret = estimator_step(&ctx, flight_phase_state, &all_sensor_input, &new_input_state, &cmd_output, 0);
 
     // Assert
     // data all 0 so expect pad filter err to avoid div by 0
@@ -220,18 +222,19 @@ TEST_F(EstimatorTest, EstimatorStepBoostStateNominal) {
     estimator_module_ctx_t ctx = { 0 };
     fsm_state_t flight_phase_state = STATE_BOOST;
     all_sensors_data_t all_sensor_input = {0};
-    controller_ctx_t conrtoller_ctx = {0};
-    conrtoller_ctx.state_updated = false;
+    controller_input_t new_input_state = {0};
+    controller_output_t cmd_output = {0};
+    new_input_state.state_updated = false;
 
     // Act
-    w_status_t actual_ret = estimator_step(&ctx, flight_phase_state, &all_sensor_input, &conrtoller_ctx, 0);
+    w_status_t actual_ret = estimator_step(&ctx, flight_phase_state, &all_sensor_input, &new_input_state, &cmd_output, 0);
 
     // Assert
     // TODO: expect pad filter to NOT be running
     EXPECT_EQ(actual_ret, W_SUCCESS);
     // expect no control cmds
     // TODO: how to check if have not checked the newest command angle
-    EXPECT_FALSE(conrtoller_ctx.state_updated);
+    EXPECT_FALSE(new_input_state.state_updated);
 }
 
 TEST_F(EstimatorTest, EstimatorStepActallowedStateNominal) {
@@ -247,18 +250,19 @@ TEST_F(EstimatorTest, EstimatorStepActallowedStateNominal) {
     estimator_module_ctx_t ctx = { 0 };
     fsm_state_t flight_phase_state = STATE_ACT_ALLOWED;
     all_sensors_data_t all_sensor_input = {0};
-    controller_ctx_t conrtoller_ctx = {0};
-    conrtoller_ctx.state_updated = false;
+    controller_input_t new_input_state = {0};
+    controller_output_t cmd_output = {0};
+    new_input_state.state_updated = false;
 
     // Act
-    w_status_t actual_ret = estimator_step(&ctx, flight_phase_state, &all_sensor_input, &conrtoller_ctx, 0);
+    w_status_t actual_ret = estimator_step(&ctx, flight_phase_state, &all_sensor_input, &new_input_state, &cmd_output, 0);
 
     // Assert
     // TODO: expect pad filter to NOT be running
     EXPECT_EQ(actual_ret, W_SUCCESS);
     // TODO: how to check if have checked the newest command angle
     // expect controller updates in this state
-    EXPECT_TRUE(conrtoller_ctx.state_updated);
+    EXPECT_TRUE(new_input_state.state_updated);
 }
 
 TEST_F(EstimatorTest, EstimatorStepRecoveryStateNominal) {
@@ -272,16 +276,17 @@ TEST_F(EstimatorTest, EstimatorStepRecoveryStateNominal) {
     estimator_module_ctx_t ctx = { 0 };
     fsm_state_t flight_phase_state = STATE_RECOVERY;
     all_sensors_data_t all_sensor_input = {0};
-    controller_ctx_t conrtoller_ctx = {0};
-    conrtoller_ctx.state_updated = false;
+    controller_input_t new_input_state = {0};
+    controller_output_t cmd_output = {0};
+    new_input_state.state_updated = false;
 
     // Act
-    w_status_t actual_ret = estimator_step(&ctx, flight_phase_state, &all_sensor_input, &conrtoller_ctx, 0);
+    w_status_t actual_ret = estimator_step(&ctx, flight_phase_state, &all_sensor_input, &new_input_state, &cmd_output, 0);
 
     // Assert
     EXPECT_EQ(actual_ret, W_SUCCESS);
     // expect still doing control
-    EXPECT_TRUE(conrtoller_ctx.state_updated);
+    EXPECT_TRUE(new_input_state.state_updated);
     EXPECT_EQ(build_state_est_data_msg_fake.call_count, STATE_ID_ENUM_MAX);
     EXPECT_EQ(can_handler_transmit_fake.call_count, STATE_ID_ENUM_MAX);
 }
@@ -298,16 +303,17 @@ TEST_F(EstimatorTest, EstimatorStepFlightStateImuInvalidPtr) {
     // Initialize required context
     estimator_module_ctx_t ctx = { 0 };
     fsm_state_t flight_phase_state = STATE_BOOST;
-    controller_ctx_t conrtoller_ctx = {0};
-    conrtoller_ctx.state_updated = false;
+    controller_input_t new_input_state = {0};
+    controller_output_t cmd_output = {0};
+    new_input_state.state_updated = false;
 
     // Act
-    w_status_t actual_ret = estimator_step(&ctx, flight_phase_state, NULL, &conrtoller_ctx, 0);
+    w_status_t actual_ret = estimator_step(&ctx, flight_phase_state, NULL, &new_input_state, &cmd_output, 0);
 
     // Assert
     EXPECT_EQ(actual_ret, W_INVALID_PARAM);
     // expect no controller updates since something failed
-    EXPECT_FALSE(conrtoller_ctx.state_updated);
+    EXPECT_FALSE(new_input_state.state_updated);
 }
 
 // TODO: add back when encoder is revived...
@@ -337,7 +343,7 @@ TEST_F(EstimatorTest, EstimatorStepFlightStateImuInvalidPtr) {
 //     EXPECT_EQ(controller_update_inputs_fake.call_count, 0);
 // }
 
-TEST_F(EstimatorTest, EstimatorStepFlightStateControllerInvalidPtr) {
+TEST_F(EstimatorTest, EstimatorStepFlightStateInputInvalidPtr) {
     // Arrange
     float expect_estimator_output; // TODO: fill in with real numbers
 
@@ -351,9 +357,34 @@ TEST_F(EstimatorTest, EstimatorStepFlightStateControllerInvalidPtr) {
     estimator_module_ctx_t ctx = { 0 };
     fsm_state_t flight_phase_state = STATE_ACT_ALLOWED;
     all_sensors_data_t all_sensor_input = {0};
+    controller_output_t cmd_output = {0};
 
     // Act
-    w_status_t actual_ret = estimator_step(&ctx, flight_phase_state, &all_sensor_input, NULL, 0);
+    w_status_t actual_ret = estimator_step(&ctx, flight_phase_state, &all_sensor_input, NULL, &cmd_output, 0);
+
+    // Assert
+    EXPECT_EQ(actual_ret, W_INVALID_PARAM);
+    // expect no controller updates since something failed
+}
+
+TEST_F(EstimatorTest, EstimatorStepFlightStateOutputInvalidPtr) {
+    // Arrange
+    float expect_estimator_output; // TODO: fill in with real numbers
+
+    flight_phase_get_state_fake.return_val = STATE_ACT_ALLOWED; // Simulate act-allowed
+    xQueueReceive_fake.return_val = pdTRUE; // Simulate successful queue receive
+    xQueuePeek_fake.return_val = pdTRUE; // Simulate successful queue peek
+    controller_get_latest_output_fake.return_val = W_FAILURE; // Simulate FAIL controller output
+    controller_update_inputs_fake.return_val = W_SUCCESS; // Simulate successful controller update
+
+    // Initialize required context
+    estimator_module_ctx_t ctx = { 0 };
+    fsm_state_t flight_phase_state = STATE_ACT_ALLOWED;
+    all_sensors_data_t all_sensor_input = {0};
+    controller_input_t new_input_state = {0};
+
+    // Act
+    w_status_t actual_ret = estimator_step(&ctx, flight_phase_state, &all_sensor_input, &new_input_state, NULL, 0);
 
     // Assert
     EXPECT_EQ(actual_ret, W_INVALID_PARAM);

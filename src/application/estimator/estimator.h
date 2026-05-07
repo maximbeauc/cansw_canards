@@ -56,13 +56,15 @@ uint32_t estimator_get_status(void);
  * @param ctx pointer to estimator context
  * @param curr_fsm_state the current flight phase
  * @param p_latest_imu_data pointer to the latest imu data
- * @param p_controller_context pointer to conrtoller context for both past actuation info and to
+ * @param p_controller_input pointer to the next conrtoller input
+ * @param p_controller_output pointer to the last conrtoller output
  * update with new actuation info
  * @param loop_count for rate limiting
  */
 w_status_t estimator_step(estimator_module_ctx_t *ctx, const fsm_state_t curr_fsm_state,
 						  const all_sensors_data_t *p_latest_imu_data,
-						  controller_ctx_t *p_controller_context, uint32_t loop_count);
+						  controller_input_t *p_controller_input,
+						  controller_output_t *p_controller_output, uint32_t loop_count);
 
 #endif
 

@@ -85,12 +85,12 @@ w_status_t controller_step(controller_ctx_t *ctx, const fsm_state_t curr_fsm_sta
 			double new_cmd = 0.0;
 
 			// make sure the state is fresh
-			if (!(ctx->state_updated)) {
+			if (!(ctx->new_input_state.state_updated)) {
 				controller_state.data_miss_counter++;
 				log_text(LOG_WAIT_MS, "controller", "data miss");
 				return W_FAILURE;
 			} else {
-				ctx->state_updated = false;
+				ctx->new_input_state.state_updated = false;
 			}
 
 			// run controller module
@@ -103,7 +103,7 @@ w_status_t controller_step(controller_ctx_t *ctx, const fsm_state_t curr_fsm_sta
 				// TODO: currently assuming the timer didn't fail, this should be reevaluated
 				ctx->cmd_output.commanded_angle = new_cmd;
 				ctx->cmd_output.timestamp = curr_timestamp_ms;
-				ctx->cmd_updated = true;
+				ctx->cmd_output.cmd_updated = true;
 
 				log_container.controller.cmd_angle = (float)new_cmd;
 				log_container.controller.ref_signal = ref_signal;
@@ -112,7 +112,7 @@ w_status_t controller_step(controller_ctx_t *ctx, const fsm_state_t curr_fsm_sta
 					status |= W_FAILURE;
 				}
 			} else {
-				ctx->cmd_updated = false;
+				ctx->cmd_output.cmd_updated = false;
 				// if anything fails, send no cmd. MCB failsafes to 0 after some ms of silence
 				log_text(LOG_WAIT_MS, "cntl act", "fail; send no cmd");
 			}

@@ -32,7 +32,8 @@ void fsm_exec(const fsm_inputs_t *p_input) {
 			estimator_step(p_input->estimator_context,
 						   p_input->curr_state,
 						   p_input->all_sensors_input,
-						   p_input->controller_context,
+						   &(p_input->controller_context->new_input_state),
+						   &(p_input->controller_context->cmd_output),
 						   0); // (ignore loop_count var for now)
 			break;
 		case STATE_RECOVERY:
@@ -40,7 +41,8 @@ void fsm_exec(const fsm_inputs_t *p_input) {
 			estimator_step(p_input->estimator_context,
 						   p_input->curr_state,
 						   p_input->all_sensors_input,
-						   p_input->controller_context,
+						   &(p_input->controller_context->new_input_state),
+						   &(p_input->controller_context->cmd_output),
 						   0); // (ignore loop_count var for now)
 			controller_step(p_input->controller_context,
 							p_input->curr_state,

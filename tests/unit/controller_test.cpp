@@ -74,7 +74,7 @@ TEST_F(ControllerTest, StepErrorAsInvalidPtr) {
     // Arrange
 
     // initalize context
-    controller_ctx_t ctx = {.state_updated = true, .cmd_updated = false};
+    controller_ctx_t ctx = {.cmd_output = {.cmd_updated = false}, .new_input_state = {.state_updated = true}};
     const fsm_state_t curr_fsm_state = STATE_IDLE;
     const uint32_t act_allowed_timestamp_ms = 1000;
     const uint32_t curr_timestamp_ms = test_act_allowed_ms_value + act_allowed_timestamp_ms;
@@ -84,7 +84,7 @@ TEST_F(ControllerTest, StepErrorAsInvalidPtr) {
 
     // Assert
     EXPECT_EQ(actual_res, W_INVALID_PARAM);
-    EXPECT_FALSE(ctx.cmd_updated);
+    EXPECT_FALSE(ctx.cmd_output.cmd_updated);
     EXPECT_EQ(log_text_fake.call_count, 1);
 }
 
@@ -92,7 +92,7 @@ TEST_F(ControllerTest, StepPadPhase) {
     // Arrange
 
     // initalize context
-    controller_ctx_t ctx = {.state_updated = true, .cmd_updated = false};
+    controller_ctx_t ctx = {.cmd_output = {.cmd_updated = false}, .new_input_state = {.state_updated = true}};
     const fsm_state_t curr_fsm_state = STATE_IDLE;
     const uint32_t act_allowed_timestamp_ms = 1000;
     const uint32_t curr_timestamp_ms = test_act_allowed_ms_value + act_allowed_timestamp_ms;
@@ -102,7 +102,7 @@ TEST_F(ControllerTest, StepPadPhase) {
 
     // Assert
     EXPECT_EQ(actual_res, W_SUCCESS);
-    EXPECT_FALSE(ctx.cmd_updated);
+    EXPECT_FALSE(ctx.cmd_output.cmd_updated);
     EXPECT_EQ(log_text_fake.call_count, 0);
 }
 
@@ -110,7 +110,7 @@ TEST_F(ControllerTest, StepPadFilterPhase) {
     // Arrange
 
     // initalize context
-    controller_ctx_t ctx = {.state_updated = true, .cmd_updated = false};
+    controller_ctx_t ctx = {.cmd_output = {.cmd_updated = false}, .new_input_state = {.state_updated = true}};
     const fsm_state_t curr_fsm_state = STATE_SE_INIT;
     const uint32_t act_allowed_timestamp_ms = 1000;
     const uint32_t curr_timestamp_ms = test_act_allowed_ms_value + act_allowed_timestamp_ms;
@@ -120,7 +120,7 @@ TEST_F(ControllerTest, StepPadFilterPhase) {
 
     // Assert
     EXPECT_EQ(actual_res, W_SUCCESS);
-    EXPECT_FALSE(ctx.cmd_updated);
+    EXPECT_FALSE(ctx.cmd_output.cmd_updated);
     EXPECT_EQ(log_text_fake.call_count, 0);
 }
 
@@ -128,7 +128,7 @@ TEST_F(ControllerTest, StepDataMiss) {
     // Arrange
 
     // initalize context
-    controller_ctx_t ctx = {.state_updated = false, .cmd_updated = false};
+    controller_ctx_t ctx = {.cmd_output = {.cmd_updated = false}, .new_input_state = {.state_updated = false}};
     const fsm_state_t curr_fsm_state = STATE_ACT_ALLOWED;
     const uint32_t act_allowed_timestamp_ms = 1000;
     const uint32_t curr_timestamp_ms = test_act_allowed_ms_value + act_allowed_timestamp_ms;
@@ -138,14 +138,14 @@ TEST_F(ControllerTest, StepDataMiss) {
 
     // Assert
     EXPECT_EQ(actual_res, W_FAILURE);
-    EXPECT_FALSE(ctx.cmd_updated);
+    EXPECT_FALSE(ctx.cmd_output.cmd_updated);
 }
 
 TEST_F(ControllerTest, StepBoostButNotActAllowed) {
     // Arrange
 
     // initalize context
-    controller_ctx_t ctx = {.state_updated = true, .cmd_updated = false};
+    controller_ctx_t ctx = {.cmd_output = {.cmd_updated = false}, .new_input_state = {.state_updated = true}};
     const fsm_state_t curr_fsm_state = STATE_BOOST;
     const uint32_t act_allowed_timestamp_ms = 1000;
     const uint32_t curr_timestamp_ms = test_act_allowed_ms_value + act_allowed_timestamp_ms;
@@ -155,7 +155,7 @@ TEST_F(ControllerTest, StepBoostButNotActAllowed) {
 
     // Assert
     EXPECT_EQ(actual_res, W_SUCCESS);
-    EXPECT_FALSE(ctx.cmd_updated);
+    EXPECT_FALSE(ctx.cmd_output.cmd_updated);
     EXPECT_EQ(log_text_fake.call_count, 0);
 }
 
@@ -164,7 +164,7 @@ TEST_F(ControllerTest, StepActAllowedButTimeWrong) {
     test_act_allowed_ms_value = 2000;
 
     // initalize context
-    controller_ctx_t ctx = {.state_updated = true, .cmd_updated = false};
+    controller_ctx_t ctx = {.cmd_output = {.cmd_updated = false}, .new_input_state = {.state_updated = true}};
     const fsm_state_t curr_fsm_state = STATE_ACT_ALLOWED;
     const uint32_t act_allowed_timestamp_ms = 1000;
     const uint32_t curr_timestamp_ms = test_act_allowed_ms_value + act_allowed_timestamp_ms;
@@ -175,7 +175,7 @@ TEST_F(ControllerTest, StepActAllowedButTimeWrong) {
     // Assert
     EXPECT_EQ(actual_res, W_FAILURE);
     // expect no cmd cuz failure
-    EXPECT_FALSE(ctx.cmd_updated);
+    EXPECT_FALSE(ctx.cmd_output.cmd_updated);
 }
 
 /**
@@ -186,7 +186,7 @@ TEST_F(ControllerTest, StepActAllowedStep1) {
     // Arrange
     
     // initalize context
-    controller_ctx_t ctx = {.state_updated = true, .cmd_updated = false};
+    controller_ctx_t ctx = {.cmd_output = {.cmd_updated = false}, .new_input_state = {.state_updated = true}};
     const fsm_state_t curr_fsm_state = STATE_ACT_ALLOWED;
 
     test_act_allowed_ms_value = 7005;
@@ -204,7 +204,7 @@ TEST_F(ControllerTest, StepActAllowedStep1) {
 
     // Assert
     EXPECT_EQ(actual_res, W_SUCCESS);
-    EXPECT_TRUE(ctx.cmd_updated);
+    EXPECT_TRUE(ctx.cmd_output.cmd_updated);
     EXPECT_NEAR(ctx.cmd_output.commanded_angle, 0.02005049, CMD_TOLERANCE_RAD);
 }
 
@@ -212,7 +212,7 @@ TEST_F(ControllerTest, StepActAllowedStep2) {
     // Arrange
     
     // initalize context
-    controller_ctx_t ctx = {.state_updated = true, .cmd_updated = false};
+    controller_ctx_t ctx = {.cmd_output = {.cmd_updated = false}, .new_input_state = {.state_updated = true}};
     const fsm_state_t curr_fsm_state = STATE_ACT_ALLOWED;
 
     test_act_allowed_ms_value = 12034;
@@ -230,7 +230,7 @@ TEST_F(ControllerTest, StepActAllowedStep2) {
 
     // Assert
     EXPECT_EQ(actual_res, W_SUCCESS);
-    EXPECT_TRUE(ctx.cmd_updated);
+    EXPECT_TRUE(ctx.cmd_output.cmd_updated);
     EXPECT_NEAR(ctx.cmd_output.commanded_angle, -0.14380301, CMD_TOLERANCE_RAD);
 }
 
@@ -238,7 +238,7 @@ TEST_F(ControllerTest, StepActAllowedOutOfBounds) {
     // Arrange
     
     // initalize context
-    controller_ctx_t ctx = {.state_updated = true, .cmd_updated = false};
+    controller_ctx_t ctx = {.cmd_output = {.cmd_updated = false}, .new_input_state = {.state_updated = true}};
     const fsm_state_t curr_fsm_state = STATE_ACT_ALLOWED;
 
     test_act_allowed_ms_value = 15034;
@@ -257,7 +257,7 @@ TEST_F(ControllerTest, StepActAllowedOutOfBounds) {
     // Assert
     EXPECT_EQ(actual_res, W_FAILURE);
     // expect no cmd if interp fails
-    EXPECT_FALSE(ctx.cmd_updated);
+    EXPECT_FALSE(ctx.cmd_output.cmd_updated);
 }
 
 // expect controller to compute and run during recovery phase too
@@ -265,7 +265,7 @@ TEST_F(ControllerTest, StepRecovery) {
     // Arrange
     
     // initalize context
-    controller_ctx_t ctx = {.state_updated = true, .cmd_updated = false};
+    controller_ctx_t ctx = {.cmd_output = {.cmd_updated = false}, .new_input_state = {.state_updated = true}};
     const fsm_state_t curr_fsm_state = STATE_RECOVERY;
 
     test_act_allowed_ms_value = 12034; // step 2
@@ -283,6 +283,6 @@ TEST_F(ControllerTest, StepRecovery) {
 
     // Assert
     EXPECT_EQ(actual_res, W_SUCCESS);
-    EXPECT_TRUE(ctx.cmd_updated);
+    EXPECT_TRUE(ctx.cmd_output.cmd_updated);
     EXPECT_NEAR(ctx.cmd_output.commanded_angle, -0.14380301, CMD_TOLERANCE_RAD);
 }
