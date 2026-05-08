@@ -1,5 +1,6 @@
 #include "application/estimator/estimator_module.h"
 #include "application/estimator/ekf.h"
+#include "application/estimator/pad_filter.h"
 #include "application/estimator/projector.h"
 #include "application/fsm/fsm_types.h"
 #include "application/logger/log.h"

@@ -1,14 +1,14 @@
+#include <stdint.h>
+
 #include "FreeRTOS.h"
 #include "queue.h"
 #include "task.h"
-#include "timers.h"
-
-#include "canlib.h"
 
 #include "application/can_handler/can_handler.h"
 #include "application/flight_phase/flight_phase.h"
 #include "application/fsm/fsm_types.h"
 #include "application/logger/log.h"
+#include "canlib.h"
 #include "drivers/timer/timer.h"
 
 // TODO: these are made up values, up to FIDO what these actually are

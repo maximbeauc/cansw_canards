@@ -3,6 +3,7 @@
 #include "adc.h" // For hadc1
 #include "fdcan.h" // For hfdcan1
 #include "i2c.h" // For hi2c2, hi2c4
+#include "stm32h7xx_hal.h"
 #include "task.h"
 #include "usart.h"
 
@@ -24,7 +25,6 @@
 #include "drivers/sd_card/sd_card.h"
 #include "drivers/timer/timer.h"
 #include "drivers/uart/uart.h"
-#include "stm32h7xx_hal.h"
 
 // Maximum number of initialization retries before giving up
 #define MAX_INIT_RETRIES 1

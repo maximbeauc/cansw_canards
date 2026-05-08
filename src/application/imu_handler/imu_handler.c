@@ -13,8 +13,6 @@
 #include "drivers/movella/movella.h"
 #include "drivers/timer/timer.h"
 
-#include "canlib.h"
-
 // Period of IMU sampling in milliseconds
 // slightly slower than 200 hz to always receive encoder which can be >5ms
 static const int IMU_SAMPLING_PERIOD_MS = 6;

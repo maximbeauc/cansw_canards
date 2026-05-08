@@ -7,11 +7,6 @@
 #include "common/math/math.h"
 
 /**
- * context/memory type structs
- */
-typedef struct estimator_module_ctx_t estimator_module_ctx_t;
-
-/**
  * data storage (format) structs
  */
 // measurement data from 1 arbitrary imu

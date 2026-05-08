@@ -3,14 +3,10 @@
 
 #include <math.h>
 
-#include "application/can_handler/can_handler.h"
 #include "application/controller/controller.h"
 #include "application/controller/controller_module.h"
-#include "application/flight_phase/flight_phase_types.h"
 #include "application/fsm/fsm_types.h"
 #include "application/logger/log.h"
-#include "drivers/timer/timer.h"
-#include "third_party/canlib/message/msg_actuator.h"
 
 #define DATA_WAIT_MS 10
 #define LOG_WAIT_MS 10

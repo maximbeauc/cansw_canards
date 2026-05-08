@@ -12,9 +12,6 @@
 #include "application/estimator/estimator.h"
 #include "application/estimator/estimator_internal.h"
 #include "application/estimator/estimator_module.h"
-#include "application/estimator/pad_filter.h"
-#include "application/flight_phase/flight_phase_types.h"
-#include "application/imu_handler/imu_handler.h"
 #include "application/logger/log.h"
 #include "drivers/timer/timer.h"
 

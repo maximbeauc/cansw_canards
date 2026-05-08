@@ -12,6 +12,9 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+// forward declare to make sure this strut is defined here
+typedef struct estimator_module_ctx_t estimator_module_ctx_t;
+
 /**
  * @brief Structure to track estimator errors and status
  */
