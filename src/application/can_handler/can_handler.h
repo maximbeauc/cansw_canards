@@ -7,10 +7,6 @@
 #include "rocketlib/include/common.h"
 #include "stm32h7xx_hal.h"
 
-#define UINT24_MAX (1U << 24) - 1U
-#define INT24_MIN -(1 << 23)
-#define INT24_MAX (1 << 23) - 1
-
 /**
  * @brief Structure to track CAN handler stats, errors and status
  */
@@ -70,6 +66,8 @@ void can_handler_task_tx(void *argument);
  *
  * It uses the canlib library to send a DEBUG_RAW message with a coarse timestamp
  * and the first few characters of the error message.
+ *
+ * @param errorMsg A descriptive string for the error (only the first ~6 chars will be sent).
  */
 void proc_handle_fatal_error(const char *errorMsg);
 

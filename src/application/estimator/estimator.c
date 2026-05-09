@@ -37,42 +37,9 @@ static QueueHandle_t encoder_data_queue_rad = NULL;
 // latest control command (radians) from controller
 static QueueHandle_t controller_cmd_queue = NULL;
 
-// ---------- private static functions ----------
-
-// TODO: No longer needed with new CAN design due to scaling for every value?
-/**
- * callback to be registered with CAN handler for encoder msgs.
- * msg_type = MSG_SENSOR_ANALOG
- */
-// static w_status_t can_encoder_msg_callback(const can_msg_t *msg) {
-// 	can_analog_sensor_id_t sensor_id;
-// 	uint16_t raw_data;
-
-// 	if (get_analog_data(msg, &sensor_id, &raw_data) == false) {
-// 		log_text(1, "Estimator", "get_analog_data fail");
-// 		return W_FAILURE;
-// 	}
-
-// 	if (SENSOR_CANARD_ENCODER_1 == sensor_id) {
-// 		// shift to [-10000, 10000] mdeg then convert to radians. raw is centered at 32768
-// 		int16_t angle_mdeg = (int16_t)(raw_data - 32768);
-// 		float encoder_val_rad = ((int32_t)angle_mdeg * (RAD_PER_DEG) / 1000.0f);
-
-// 		// send to internal data queue
-// 		xQueueOverwrite(encoder_data_queue_rad, &encoder_val_rad);
-// 	}
-// 	return W_SUCCESS;
-// }
-
 // ---------- public functions ----------
 
 w_status_t estimator_init(void) {
-	// TODO: No longer needed with new CAN design due to scaling for every value?
-	// register the callback for the encoder can msgs
-	// if (W_SUCCESS != can_handler_register_callback(MSG_SENSOR_ANALOG, can_encoder_msg_callback))
-	// { 	log_text(1, "adc", "initfailenc"); 	return W_FAILURE;
-	// }
-
 	// create queues for imu data, encoder data, and controller cmd
 	imu_data_queue = xQueueCreate(1, sizeof(estimator_all_imus_input_t));
 	encoder_data_queue_rad = xQueueCreate(1, sizeof(float));
