@@ -287,14 +287,14 @@ uint32_t flight_phase_get_status(void) {
 }
 
 // new state machine function stubs
-w_status_t flight_phase_timer_detection(flight_phase_ctx_t *p_ctx, const fsm_state_t *p_state,
-										const uint32_t timestamp_ms,
-										flight_phase_event_t *p_timer_event) {
-	return W_SUCCESS;
+flight_phase_event_t flight_phase_timer_detection(flight_phase_ctx_t *p_ctx,
+												  const fsm_state_t p_state,
+												  const uint32_t timestamp_ms) {
+	return EVENT_NONE;
 }
 
-w_status_t flight_phase_sensor_detection(flight_phase_ctx_t *p_ctx, const fsm_state_t *p_state,
-										 const all_sensors_data_t *p_sensor_data,
-										 flight_phase_event_t *p_sensor_event) {
-	return W_SUCCESS;
+flight_phase_event_t flight_phase_sensor_detection(flight_phase_ctx_t *p_ctx,
+												   const fsm_state_t p_state,
+												   const all_sensors_data_t *p_sensor_data) {
+	return EVENT_NONE;
 }

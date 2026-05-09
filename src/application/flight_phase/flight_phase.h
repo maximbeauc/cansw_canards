@@ -75,25 +75,23 @@ uint32_t flight_phase_get_status(void);
 /**
  * @brief performs any timer based state transition detection
  * @param p_context is the global flight phase global context
- * @param p_state pointer to global fsm state
+ * @param curr_state current fsm state
  * @param timestamp_ms is the current timestamp
- * @param p_timer_event is the pointer to any generated timer event
- * @return the status of the function
+ * @return generated timer event
  */
-w_status_t flight_phase_timer_detection(flight_phase_ctx_t *p_ctx, const fsm_state_t *p_state,
-										const uint32_t timestamp_ms,
-										flight_phase_event_t *p_timer_event);
+flight_phase_event_t flight_phase_timer_detection(flight_phase_ctx_t *p_ctx,
+												  const fsm_state_t p_state,
+												  const uint32_t timestamp_ms);
 
 /**
  * @brief performs any sensor based state transition detection
  * @param p_context pointer to the global flight phase global context
- * @param p_state pointer to global fsm state
+ * @param curr_state current fsm state
  * @param p_sensor_data pointer to the current sensor data
- * @param p_sensor_event pointer to any generated sensor event
- * @return the status of the function
+ * @return generated sensor event
  */
-w_status_t flight_phase_sensor_detection(flight_phase_ctx_t *p_ctx, const fsm_state_t *p_state,
-										 const all_sensors_data_t *p_sensor_data,
-										 flight_phase_event_t *p_sensor_event);
+flight_phase_event_t flight_phase_sensor_detection(flight_phase_ctx_t *p_ctx,
+												   const fsm_state_t p_state,
+												   const all_sensors_data_t *p_sensor_data);
 
 #endif
