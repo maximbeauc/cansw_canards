@@ -47,7 +47,7 @@ typedef struct {
 } estimator_error_data_t;
 
 /**
- * @brief initialize estimator module. call before creating estimator task
+ * @brief initialize estimator module
  */
 w_status_t estimator_init();
 

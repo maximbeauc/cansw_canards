@@ -158,17 +158,6 @@ static void system_init_task(void *arg) {
 
 	task_status &= xTaskCreate(log_task, "logger", 512, NULL, log_task_priority, &log_task_handle);
 
-	// task_status &= xTaskCreate(controller_task,
-	//     "controller",
-	//     512,
-	//     NULL,
-	//     controller_task_priority,
-	//     &controller_task_handle);
-
-	// task_status &= xTaskCreate(
-	//     estimator_task, "estimator", 8192, NULL, estimator_task_priority,
-	//     &estimator_task_handle);
-
 	if (task_status != pdTRUE) {
 		// Log critical task creation failure
 		log_text(10, "SystemInit", "CRITICAL: Failed to create one or more FreeRTOS tasks.");

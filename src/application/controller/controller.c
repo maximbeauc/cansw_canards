@@ -35,12 +35,10 @@ w_status_t controller_init(void) {
 	return W_SUCCESS;
 }
 
-// helper to run 1 loop of the controller task, including delaying where needed.
+// helper to run 1 iteration of the controller algo, including delaying where needed.
 w_status_t controller_step(controller_ctx_t *ctx, controller_input_t *const input,
 						   controller_output_t *output, const uint32_t act_allowed_timestamp_ms,
 						   const uint32_t curr_timestamp_ms) {
-	(void)input;
-
 	if (NULL == ctx) {
 		log_text(LOG_WAIT_MS, "controller", "ERROR: Invalid context ptr.");
 		return W_INVALID_PARAM;
@@ -56,6 +54,7 @@ w_status_t controller_step(controller_ctx_t *ctx, controller_input_t *const inpu
 	// TODO: call codegen to run controller module
 	// status |=
 	//     controller_module(ctx, act_allowed_ms, &output, &ref_signal);
+	(void)input;
 
 	// send motor cmd if we can
 	if (W_SUCCESS == status) {
@@ -73,19 +72,6 @@ w_status_t controller_step(controller_ctx_t *ctx, controller_input_t *const inpu
 	}
 
 	return status;
-}
-
-/**
- * Controller freertos task
- */
-void controller_task(void *argument) {
-	(void)argument;
-
-	while (true) {
-		// if (controller_step() != W_SUCCESS) {
-		// 	log_text(LOG_WAIT_MS, "controller", "run loop fail");
-		// }
-	}
 }
 
 uint32_t controller_get_status(void) {
