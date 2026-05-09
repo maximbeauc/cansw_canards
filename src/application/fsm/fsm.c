@@ -24,11 +24,51 @@ typedef struct {
 	flight_phase_ctx_t *p_flight_phase_context; // global instance of flight phase
 } fsm_inputs_t;
 
+// global
+static fsm_inputs_t g_inputs = {0};
+
+// create all of the global instances
+static estimator_module_ctx_t g_estimator_context = {0};
+
+// make sure controller_output_t is initalized to 0 and valid to read to match original design
+static controller_ctx_t g_controller_context = {0};
+static flight_phase_ctx_t g_flight_phase_context = {0};
+static all_sensors_data_t g_all_sensors_input = {0};
+
+w_status_t fsm_init() {
+	// init estimator context
+	// initialize ctx timestamp to current time
+	uint32_t init_time_tenth_ms = 0;
+	if (timer_get_tenth_ms(&init_time_tenth_ms) != W_SUCCESS) {
+		// TODO how to deal with error
+		return W_FAILURE;
+	}
+	g_estimator_context.t_sec =
+		((float64_t)init_time_tenth_ms) / 10000.0; // convert 0.1ms to seconds
+	g_estimator_context.x.attitude.w = 1.0;
+	g_estimator_context.x.attitude.x = 0.0;
+	g_estimator_context.x.attitude.y = 0.0;
+	g_estimator_context.x.attitude.z = 0.0;
+	g_estimator_context.x.altitude = 420;
+	g_estimator_context.x.CL = 3;
+
+	// init rest of input
+	g_inputs.estimator_context = &g_estimator_context;
+	g_inputs.p_controller_context = &g_controller_context;
+	g_inputs.p_flight_phase_context = &g_flight_phase_context;
+	g_inputs.all_sensors_input = &g_all_sensors_input;
+
+	// initialize fsm state
+	g_inputs.curr_state = STATE_IDLE;
+
+	return W_SUCCESS;
+}
+
 void fsm_exec(const fsm_inputs_t *p_input) {
 	navigator_input_t navigator_input = {};
 	navigator_output_t navigator_output = {};
-	controller_input_t controller_input = {};
-	controller_output_t controller_output = {};
+	controller_input_t controller_input = {0};
+	controller_output_t controller_output = {0};
 
 	// TODO: convert fsm_inputs into the nav/cntl inputs
 
@@ -37,7 +77,9 @@ void fsm_exec(const fsm_inputs_t *p_input) {
 			// do stuff
 			break;
 
+		// both Pad filter and boost will only run estimator step
 		case STATE_SE_INIT:
+		// TODO: how to tell estimator it needs to pad filter
 		case STATE_BOOST:
 			estimator_step(p_input->estimator_context,
 						   &navigator_input,
@@ -45,8 +87,9 @@ void fsm_exec(const fsm_inputs_t *p_input) {
 						   0); // (ignore loop_count var for now)
 			break;
 
-		case STATE_RECOVERY:
+		// both act allowed and recovery will only run estimator and controller step
 		case STATE_ACT_ALLOWED:
+		case STATE_RECOVERY:
 			estimator_step(p_input->estimator_context,
 						   &navigator_input,
 						   &navigator_output,
@@ -78,11 +121,8 @@ void fsm_do_transitions(fsm_inputs_t *p_input) {
 												  p_input->timestamp_ms,
 												  &timer_event)) {
 		if (EVENT_NONE != timer_event) {
-			if (W_SUCCESS != flight_phase_update_state(timer_event,
-													   &p_input->curr_state,
-													   p_input->p_flight_phase_context)) {
-				// TODO: error handling
-			}
+			p_input->curr_state = flight_phase_update_state(
+				timer_event, p_input->curr_state, p_input->p_flight_phase_context);
 		}
 	} else {
 		// TODO: error handling
@@ -93,16 +133,11 @@ void fsm_do_transitions(fsm_inputs_t *p_input) {
 	uint8_t num_events = 0;
 	// since queue receive fails when there are nothing in the queue so that can be used here
 	while ((num_events < MAX_PROCESS_FP_QUEUE_EVENTS) && (EVENT_NONE != queue_event)) {
-		if (W_SUCCESS != flight_phase_update_state(
-							 queue_event, &p_input->curr_state, p_input->p_flight_phase_context)) {
-			// TODO: error handling
-		}
+		p_input->curr_state = flight_phase_update_state(
+			timer_event, p_input->curr_state, p_input->p_flight_phase_context);
 		num_events++;
 		queue_event = flight_phase_get_queue_event(QUEUE_TIMEOUT_MS);
 	}
-
-	// TODO: what should be done if there are still events remaining after reaching the
-	// MAX_PROCESS_FP_QUEUE_EVENTS
 
 	// perform sensor transitions
 	// this is done last to make sure any of the new async or timer events can be processed first
@@ -112,11 +147,8 @@ void fsm_do_transitions(fsm_inputs_t *p_input) {
 												   p_input->all_sensors_input,
 												   &sensor_event)) {
 		if (EVENT_NONE != sensor_event) {
-			if (W_SUCCESS != flight_phase_update_state(sensor_event,
-													   &p_input->curr_state,
-													   p_input->p_flight_phase_context)) {
-				// TODO: error handling
-			}
+			p_input->curr_state = flight_phase_update_state(
+				timer_event, p_input->curr_state, p_input->p_flight_phase_context);
 		}
 	} else {
 		// TODO: error handling
@@ -127,43 +159,10 @@ void fsm_task(void *args) {
 	(void)args;
 	TickType_t last_wake_time = xTaskGetTickCount();
 
-	fsm_inputs_t inputs = {0};
-
-	// create all of the global instances
-	estimator_module_ctx_t g_estimator_context = {0};
-
-	// make sure controller_output_t is initalized to 0 and valid to read to match original design
-	controller_ctx_t g_controller_context = {0};
-	flight_phase_ctx_t g_flight_phase_context = {0};
-	all_sensors_data_t g_all_sensors_input = {0};
-
-	// update estimator context
-	// initialize ctx timestamp to current time
-	uint32_t init_time_tenth_ms = 0;
-	if (timer_get_tenth_ms(&init_time_tenth_ms) != W_SUCCESS) {
-		// TODO how to deal with error
-	}
-	g_estimator_context.t_sec =
-		((float64_t)init_time_tenth_ms) / 10000.0; // convert 0.1ms to seconds
-	g_estimator_context.x.attitude.w = 1.0;
-	g_estimator_context.x.attitude.x = 0.0;
-	g_estimator_context.x.attitude.y = 0.0;
-	g_estimator_context.x.attitude.z = 0.0;
-	g_estimator_context.x.altitude = 420;
-	g_estimator_context.x.CL = 3;
-
-	inputs.estimator_context = &g_estimator_context;
-	inputs.p_controller_context = &g_controller_context;
-	inputs.p_flight_phase_context = &g_flight_phase_context;
-	inputs.all_sensors_input = &g_all_sensors_input;
-
-	// initialize fsm state
-	inputs.curr_state = STATE_IDLE;
-
 	// consider how to establish
 
 	while (1) {
-		if (W_SUCCESS != timer_get_ms(&(inputs.timestamp_ms))) {
+		if (W_SUCCESS != timer_get_ms(&(g_inputs.timestamp_ms))) {
 			// TODO: error handling
 		}
 
@@ -174,13 +173,13 @@ void fsm_task(void *args) {
 		// data will be updated, while the rest should use const and therefore that should stay
 		imu_handler_get_fresh_meas(
 			0,
-			(all_sensors_data_t *)inputs.all_sensors_input); // (ignore loop_count param for now)
+			(all_sensors_data_t *)g_inputs.all_sensors_input); // (ignore loop_count param for now)
 
 		// do state machine transitions for a limited number of most recent events
-		fsm_do_transitions(&inputs);
+		fsm_do_transitions(&g_inputs);
 
 		// run actions based on curr state
-		fsm_exec(&inputs);
+		fsm_exec(&g_inputs);
 
 		vTaskDelayUntil(&last_wake_time,
 						pdMS_TO_TICKS(FSM_PERIOD_MS)); // state machine runs at 500 hz

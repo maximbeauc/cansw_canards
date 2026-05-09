@@ -96,20 +96,12 @@ typedef struct {
 	// Scheduling variables (flight condition)
 	double pressure_dynamic;
 	double canard_coeff;
-	// TODO: potentially also examine if a timestamp would be more appropriate
-	// check for freshness of the input
-	// this is done to make sure only under a few state are the new cmd actually going to be
-	// indicated as usable by the system (this is to keep in structure with last years system,
-	// though this seem very redundent)
-	bool state_updated;
 } controller_input_t;
 
 // Output of controller: latest commanded canard angle
 typedef struct {
 	double commanded_angle; // radians
 	uint32_t timestamp; // ms
-	bool cmd_updated; // this has now going to be used to let motor know if the there was a command
-	// update or not (this should be set false by the motor once read)
 } controller_output_t;
 
 #endif

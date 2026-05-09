@@ -14,6 +14,11 @@ typedef enum {
 } fsm_state_t;
 
 /**
+ * @brief init fsm
+ */
+w_status_t fsm_init();
+
+/**
  * run in 500 hz freertos task
  */
 void fsm_task(void *args);

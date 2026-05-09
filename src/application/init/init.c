@@ -98,6 +98,7 @@ static void system_init_task(void *arg) {
 	status |= imu_handler_init();
 	status |= can_handler_init(&hfdcan3);
 	status |= controller_init();
+	status |= fsm_init();
 	// status |= ekf_init();
 
 	// cannot continue if any of the above fail

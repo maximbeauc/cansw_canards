@@ -129,27 +129,16 @@ TEST_F(FlightPhaseTest, ResetSendsResetEvent) {
     EXPECT_EQ(status, W_SUCCESS);
 }
 
-TEST_F(FlightPhaseTest, UpdateFailAsInvalidStatePtr) {
-    // Arrange
-    flight_phase_ctx_t ctx = {0};
-
-    // Act
-    w_status_t status = flight_phase_update_state(EVENT_ESTIMATOR_INIT, NULL, &ctx);
-
-    // Assert
-    EXPECT_EQ(status, W_INVALID_PARAM);
-}
-
+// TODO: update launch and act allowed timestamps
 TEST_F(FlightPhaseTest, UpdateFailAsInvalidCtxPtr) {
     // Arrange
     fsm_state_t curr_state = STATE_IDLE;
 
     // Act
-    w_status_t status = flight_phase_update_state(EVENT_ESTIMATOR_INIT, &curr_state, NULL);
+    fsm_state_t new_state = flight_phase_update_state(EVENT_ESTIMATOR_INIT, curr_state, NULL);
 
     // Assert
-    EXPECT_EQ(curr_state, STATE_IDLE);
-    EXPECT_EQ(status, W_INVALID_PARAM);
+    EXPECT_EQ(new_state, STATE_IDLE);
 }
 
 TEST_F(FlightPhaseTest, IdleToPadfilter) {
@@ -158,11 +147,10 @@ TEST_F(FlightPhaseTest, IdleToPadfilter) {
     fsm_state_t curr_state = STATE_IDLE;
 
     // Act
-    w_status_t status = flight_phase_update_state(EVENT_ESTIMATOR_INIT, &curr_state, &ctx);
+    fsm_state_t new_state = flight_phase_update_state(EVENT_ESTIMATOR_INIT, curr_state, &ctx);
 
     // Assert
-    EXPECT_EQ(curr_state, STATE_SE_INIT);
-    EXPECT_EQ(status, W_SUCCESS);
+    EXPECT_EQ(new_state, STATE_SE_INIT);
 }
 
 TEST_F(FlightPhaseTest, IdleToBoost) {
@@ -171,11 +159,10 @@ TEST_F(FlightPhaseTest, IdleToBoost) {
     fsm_state_t curr_state = STATE_IDLE;
 
     // Act
-    w_status_t status = flight_phase_update_state(EVENT_INJ_OPEN, &curr_state, &ctx);
+    fsm_state_t new_state = flight_phase_update_state(EVENT_INJ_OPEN, curr_state, &ctx);
 
     // Assert
-    EXPECT_EQ(curr_state, STATE_BOOST);
-    EXPECT_EQ(status, W_SUCCESS);
+    EXPECT_EQ(new_state, STATE_BOOST);
 }
 
 TEST_F(FlightPhaseTest, IdleToIdle) {
@@ -184,11 +171,10 @@ TEST_F(FlightPhaseTest, IdleToIdle) {
     fsm_state_t curr_state = STATE_IDLE;
 
     // Act
-    w_status_t status = flight_phase_update_state(EVENT_ACT_DELAY_ELAPSED, &curr_state, &ctx);
+    fsm_state_t new_state = flight_phase_update_state(EVENT_ACT_DELAY_ELAPSED, curr_state, &ctx);
 
     // Assert
-    EXPECT_EQ(curr_state, STATE_IDLE);
-    EXPECT_EQ(status, W_SUCCESS);
+    EXPECT_EQ(new_state, STATE_IDLE);
 }
 
 TEST_F(FlightPhaseTest, PadfilterToBoost) {
@@ -197,11 +183,10 @@ TEST_F(FlightPhaseTest, PadfilterToBoost) {
     fsm_state_t curr_state = STATE_SE_INIT;
 
     // Act
-    w_status_t status = flight_phase_update_state(EVENT_INJ_OPEN, &curr_state, &ctx);
+    fsm_state_t new_state = flight_phase_update_state(EVENT_INJ_OPEN, curr_state, &ctx);
 
     // Assert
-    EXPECT_EQ(curr_state, STATE_BOOST);
-    EXPECT_EQ(status, W_SUCCESS);
+    EXPECT_EQ(new_state, STATE_BOOST);
 }
 
 TEST_F(FlightPhaseTest, PadfilterToPadfilter) {
@@ -210,11 +195,10 @@ TEST_F(FlightPhaseTest, PadfilterToPadfilter) {
     fsm_state_t curr_state = STATE_SE_INIT;
 
     // Act
-    w_status_t status = flight_phase_update_state(EVENT_ESTIMATOR_INIT, &curr_state, &ctx);
+    fsm_state_t new_state = flight_phase_update_state(EVENT_ESTIMATOR_INIT, curr_state, &ctx);
 
     // Assert
-    EXPECT_EQ(curr_state, STATE_SE_INIT);
-    EXPECT_EQ(status, W_SUCCESS);
+    EXPECT_EQ(new_state, STATE_SE_INIT);
 }
 
 TEST_F(FlightPhaseTest, PadfilterToPadfilter2) {
@@ -223,11 +207,10 @@ TEST_F(FlightPhaseTest, PadfilterToPadfilter2) {
     fsm_state_t curr_state = STATE_SE_INIT;
 
     // Act
-    w_status_t status = flight_phase_update_state(EVENT_ACT_DELAY_ELAPSED, &curr_state, &ctx);
+    fsm_state_t new_state = flight_phase_update_state(EVENT_ACT_DELAY_ELAPSED, curr_state, &ctx);
 
     // Assert
-    EXPECT_EQ(curr_state, STATE_SE_INIT);
-    EXPECT_EQ(status, W_SUCCESS);
+    EXPECT_EQ(new_state, STATE_SE_INIT);
 }
 
 TEST_F(FlightPhaseTest, BoostToActAllowed) {
@@ -236,11 +219,10 @@ TEST_F(FlightPhaseTest, BoostToActAllowed) {
     fsm_state_t curr_state = STATE_BOOST;
 
     // Act
-    w_status_t status = flight_phase_update_state(EVENT_ACT_DELAY_ELAPSED, &curr_state, &ctx);
+    fsm_state_t new_state = flight_phase_update_state(EVENT_ACT_DELAY_ELAPSED, curr_state, &ctx);
 
     // Assert
-    EXPECT_EQ(curr_state, STATE_ACT_ALLOWED);
-    EXPECT_EQ(status, W_SUCCESS);
+    EXPECT_EQ(new_state, STATE_ACT_ALLOWED);
 }
 
 TEST_F(FlightPhaseTest, BoostToRecovery) {
@@ -249,11 +231,10 @@ TEST_F(FlightPhaseTest, BoostToRecovery) {
     fsm_state_t curr_state = STATE_BOOST;
 
     // Act
-    w_status_t status = flight_phase_update_state(EVENT_FLIGHT_ELAPSED, &curr_state, &ctx);
+    fsm_state_t new_state = flight_phase_update_state(EVENT_FLIGHT_ELAPSED, curr_state, &ctx);
 
     // Assert
-    EXPECT_EQ(curr_state, STATE_RECOVERY);
-    EXPECT_EQ(status, W_SUCCESS);
+    EXPECT_EQ(new_state, STATE_RECOVERY);
 }
 
 TEST_F(FlightPhaseTest, BoostToBoost) {
@@ -262,11 +243,10 @@ TEST_F(FlightPhaseTest, BoostToBoost) {
     fsm_state_t curr_state = STATE_BOOST;
 
     // Act
-    w_status_t status = flight_phase_update_state(EVENT_INJ_OPEN, &curr_state, &ctx);
+    fsm_state_t new_state = flight_phase_update_state(EVENT_INJ_OPEN, curr_state, &ctx);
 
     // Assert
-    EXPECT_EQ(curr_state, STATE_BOOST);
-    EXPECT_EQ(status, W_SUCCESS);
+    EXPECT_EQ(new_state, STATE_BOOST);
 }
 
 TEST_F(FlightPhaseTest, BoostToBoost2) {
@@ -275,11 +255,10 @@ TEST_F(FlightPhaseTest, BoostToBoost2) {
     fsm_state_t curr_state = STATE_BOOST;
 
     // Act
-    w_status_t status = flight_phase_update_state(EVENT_ESTIMATOR_INIT, &curr_state, &ctx);
+    fsm_state_t new_state = flight_phase_update_state(EVENT_ESTIMATOR_INIT, curr_state, &ctx);
 
     // Assert
-    EXPECT_EQ(curr_state, STATE_BOOST);
-    EXPECT_EQ(status, W_SUCCESS);
+    EXPECT_EQ(new_state, STATE_BOOST);
 }
 
 TEST_F(FlightPhaseTest, ActAllowedToRecovery) {
@@ -288,11 +267,10 @@ TEST_F(FlightPhaseTest, ActAllowedToRecovery) {
     fsm_state_t curr_state = STATE_ACT_ALLOWED;
 
     // Act
-    w_status_t status = flight_phase_update_state(EVENT_FLIGHT_ELAPSED, &curr_state, &ctx);
+    fsm_state_t new_state = flight_phase_update_state(EVENT_FLIGHT_ELAPSED, curr_state, &ctx);
 
     // Assert
-    EXPECT_EQ(curr_state, STATE_RECOVERY);
-    EXPECT_EQ(status, W_SUCCESS);
+    EXPECT_EQ(new_state, STATE_RECOVERY);
 }
 
 TEST_F(FlightPhaseTest, ActAllowedToActAllowed) {
@@ -301,11 +279,10 @@ TEST_F(FlightPhaseTest, ActAllowedToActAllowed) {
     fsm_state_t curr_state = STATE_ACT_ALLOWED;
 
     // Act
-    w_status_t status = flight_phase_update_state(EVENT_ESTIMATOR_INIT, &curr_state, &ctx);
+    fsm_state_t new_state = flight_phase_update_state(EVENT_ESTIMATOR_INIT, curr_state, &ctx);
 
     // Assert
-    EXPECT_EQ(curr_state, STATE_ACT_ALLOWED);
-    EXPECT_EQ(status, W_SUCCESS);
+    EXPECT_EQ(new_state, STATE_ACT_ALLOWED);
 }
 
 TEST_F(FlightPhaseTest, ActAllowedToActAllowed2) {
@@ -314,11 +291,10 @@ TEST_F(FlightPhaseTest, ActAllowedToActAllowed2) {
     fsm_state_t curr_state = STATE_ACT_ALLOWED;
 
     // Act
-    w_status_t status = flight_phase_update_state(EVENT_INJ_OPEN, &curr_state, &ctx);
+    fsm_state_t new_state = flight_phase_update_state(EVENT_INJ_OPEN, curr_state, &ctx);
 
     // Assert
-    EXPECT_EQ(curr_state, STATE_ACT_ALLOWED);
-    EXPECT_EQ(status, W_SUCCESS);
+    EXPECT_EQ(new_state, STATE_ACT_ALLOWED);
 }
 
 TEST_F(FlightPhaseTest, RecoveryToRecovery) {
@@ -327,11 +303,10 @@ TEST_F(FlightPhaseTest, RecoveryToRecovery) {
     fsm_state_t curr_state = STATE_RECOVERY;
 
     // Act
-    w_status_t status = flight_phase_update_state(EVENT_INJ_OPEN, &curr_state, &ctx);
+    fsm_state_t new_state = flight_phase_update_state(EVENT_INJ_OPEN, curr_state, &ctx);
 
     // Assert
-    EXPECT_EQ(curr_state, STATE_RECOVERY);
-    EXPECT_EQ(status, W_SUCCESS);
+    EXPECT_EQ(new_state, STATE_RECOVERY);
 }
 
 TEST_F(FlightPhaseTest, RecoveryToRecovery2) {
@@ -340,9 +315,8 @@ TEST_F(FlightPhaseTest, RecoveryToRecovery2) {
     fsm_state_t curr_state = STATE_RECOVERY;
 
     // Act
-    w_status_t status = flight_phase_update_state(EVENT_ESTIMATOR_INIT, &curr_state, &ctx);
+    fsm_state_t new_state = flight_phase_update_state(EVENT_ESTIMATOR_INIT, curr_state, &ctx);
 
     // Assert
-    EXPECT_EQ(curr_state, STATE_RECOVERY);
-    EXPECT_EQ(status, W_SUCCESS);
+    EXPECT_EQ(new_state, STATE_RECOVERY);
 }

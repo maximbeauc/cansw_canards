@@ -56,8 +56,8 @@ flight_phase_event_t flight_phase_get_queue_event(uint8_t timeout_ms);
 /**
  * process 1 transition.
  */
-w_status_t flight_phase_update_state(flight_phase_event_t event, fsm_state_t *p_state,
-									 flight_phase_ctx_t *p_ctx);
+fsm_state_t flight_phase_update_state(flight_phase_event_t event, fsm_state_t curr_state,
+									  flight_phase_ctx_t *p_ctx);
 
 /**
  * Resets the flight phase state machine to initial state

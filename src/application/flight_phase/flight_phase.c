@@ -148,93 +148,94 @@ w_status_t flight_phase_reset(void) {
  * @return W_SUCCESS if the input state was valid, W_FAILURE otherwise (this means W_SUCCESS is
  * returned event if we go into STATE_ERROR)
  */
-w_status_t flight_phase_update_state(flight_phase_event_t event, fsm_state_t *p_state,
-									 flight_phase_ctx_t *p_ctx) {
-	if ((NULL == p_state) || (NULL == p_ctx)) {
+fsm_state_t flight_phase_update_state(flight_phase_event_t event, fsm_state_t curr_state,
+									  flight_phase_ctx_t *p_ctx) {
+	if (NULL == p_ctx) {
 		log_text(5, "FlightPhase", "ERROR: Invalid ptrs in update states");
-		return W_INVALID_PARAM;
+		// just return the current state if invalid
+		return curr_state;
 	}
 
-	fsm_state_t previous_state = *p_state;
+	fsm_state_t new_state = curr_state;
 
-	switch (*p_state) {
+	switch (curr_state) {
 		case STATE_IDLE:
 			if (EVENT_ESTIMATOR_INIT == event) {
-				*p_state = STATE_SE_INIT;
+				new_state = STATE_SE_INIT;
 			} else if (EVENT_INJ_OPEN == event) {
 				// allowed to skip pad filter state in case it was forgotten or failed etc.
 				// not ideal but would rather run without pad filter than not fly at all
-				*p_state = STATE_BOOST;
+				new_state = STATE_BOOST;
 				// flight starts now
 				timer_get_ms(&(p_ctx->launch_timestamp_ms));
 			} else {
 				// Ignore redundant PAD events or other unexpected events
-				log_text(5, "FlightPhase", "Unexpected event %d in state %d", event, *p_state);
+				log_text(5, "FlightPhase", "Unexpected event %d in state %d", event, curr_state);
 			}
 			break;
 
 		case STATE_SE_INIT:
 			if (EVENT_INJ_OPEN == event) {
-				*p_state = STATE_BOOST;
+				new_state = STATE_BOOST;
 				// flight starts now
 				timer_get_ms(&(p_ctx->launch_timestamp_ms));
 			} else {
 				// Ignore redundant or unexpected events - this is a known safe state
-				log_text(5, "FlightPhase", "Unexpected event %d in state %d", event, *p_state);
+				log_text(5, "FlightPhase", "Unexpected event %d in state %d", event, curr_state);
 			}
 			break;
 
 		case STATE_BOOST:
 			if (EVENT_ACT_DELAY_ELAPSED == event) {
-				*p_state = STATE_ACT_ALLOWED;
+				new_state = STATE_ACT_ALLOWED;
 				// record timestamp of actuation-allowed start (aka we just exited boost phase)
 				timer_get_ms(&(p_ctx->act_allowed_timestamp_ms));
 			} else if (EVENT_FLIGHT_ELAPSED == event) {
-				*p_state = STATE_RECOVERY;
+				new_state = STATE_RECOVERY;
 			} else {
 				// Ignore redundant or unexpected events - this is a known safe state
-				log_text(5, "FlightPhase", "Unexpected event %d in state %d", event, *p_state);
+				log_text(5, "FlightPhase", "Unexpected event %d in state %d", event, curr_state);
 			}
 			break;
 
 		case STATE_ACT_ALLOWED:
 			if (EVENT_FLIGHT_ELAPSED == event) {
-				*p_state = STATE_RECOVERY;
+				new_state = STATE_RECOVERY;
 			} else {
 				// Ignore redundant or unexpected events - already in flight
-				log_text(5, "FlightPhase", "Unexpected event %d in state %d", event, *p_state);
+				log_text(5, "FlightPhase", "Unexpected event %d in state %d", event, curr_state);
 			}
 			break;
 
 		case STATE_RECOVERY:
 			if (EVENT_RESET == event) {
-				*p_state = STATE_IDLE;
+				new_state = STATE_IDLE;
 			} else {
 				// Ignore redundant or unexpected events - already in flight
-				log_text(5, "FlightPhase", "Unexpected event %d in state %d", event, *p_state);
+				log_text(5, "FlightPhase", "Unexpected event %d in state %d", event, curr_state);
 			}
 			break;
 		case STATE_ERROR:
 			if (EVENT_RESET == event) {
-				*p_state = STATE_IDLE;
+				new_state = STATE_IDLE;
 			} else {
 				// Stay in error state, log repeated invalid event
 				log_text(1, "FlightPhase", "Invalid event %d in STATE_ERROR", event);
 			}
 			break;
 		default:
-			log_text(10, "FlightPhase", "Unhandled state %d", *p_state);
-			*p_state = STATE_ERROR; // Ensure state becomes ERROR
-			return W_FAILURE;
+			log_text(10, "FlightPhase", "Unhandled state %d", curr_state);
+			new_state = STATE_ERROR; // Ensure state becomes ERROR
+			return new_state;
 			break;
 	}
 
 	// Only count as a transition if the state actually changed
-	if (previous_state != *p_state) {
+	if (new_state != curr_state) {
 		flight_phase_status.state_transitions++;
 	}
 
-	return W_SUCCESS;
+	return new_state;
 }
 
 /**
