@@ -4,7 +4,7 @@
 #ifndef EKF_H
 #define EKF_H
 
-#include "application/estimator/estimator_internal.h"
+#include "application/estimator/estimator_types.h"
 #include "arm_math.h"
 #include "common/math/math.h"
 #include "third_party/rocketlib/include/common.h"

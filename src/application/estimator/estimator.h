@@ -1,10 +1,9 @@
-#ifndef STATE_EST_H
-#define STATE_EST_H
+#ifndef NAVIGATOR_H
+#define NAVIGATOR_H
 
-#include "application/controller/controller_types.h"
-#include "application/estimator/estimator_internal.h"
 #include "application/estimator/estimator_types.h"
-#include "application/fsm/fsm_types.h"
+#include "application/fsm/fsm.h"
+#include "common/gnc/gnc_types.h"
 #include "common/math/math.h"
 
 #include "third_party/rocketlib/include/common.h"
@@ -12,8 +11,27 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-// forward declare to make sure this strut is defined here
-typedef struct estimator_module_ctx_t estimator_module_ctx_t;
+/**
+ * this holds persistent data for 1 instance of a pad_filter (ie, its context)
+ */
+typedef struct {
+	y_imu_t filtered_1;
+	y_imu_t filtered_2;
+	bool is_initialized;
+} pad_filter_ctx_t;
+
+/**
+ * persistent state updated by estimator and fsm
+ */
+typedef struct estimator_module_ctx_t {
+	x_state_t x;
+	double P_flat[SIZE_STATE * SIZE_STATE];
+	y_imu_t bias_movella;
+	y_imu_t bias_pololu;
+	double t_sec; // previous timestamp
+	// estimator ctx must have exactly 1 pad filter ctx
+	pad_filter_ctx_t pad_filter_ctx;
+} estimator_module_ctx_t; // TODO: rename to simply navigator_ctx_t
 
 /**
  * @brief Structure to track estimator errors and status
@@ -59,15 +77,12 @@ uint32_t estimator_get_status(void);
  * @param ctx pointer to estimator context
  * @param curr_fsm_state the current flight phase
  * @param p_latest_imu_data pointer to the latest imu data
- * @param p_controller_input pointer to the next conrtoller input
- * @param p_controller_output pointer to the last conrtoller output
+ * @param p_input pointer to the next navigator input
+ * @param p_output pointer to the last navigator output
  * update with new actuation info
  * @param loop_count for rate limiting
  */
-w_status_t estimator_step(estimator_module_ctx_t *ctx, const fsm_state_t curr_fsm_state,
-						  const all_sensors_data_t *p_latest_imu_data,
-						  controller_input_t *p_controller_input,
-						  controller_output_t *p_controller_output, uint32_t loop_count);
+w_status_t estimator_step(estimator_module_ctx_t *ctx, navigator_input_t *p_input,
+						  navigator_output_t *p_output, uint32_t loop_count);
 
 #endif
-

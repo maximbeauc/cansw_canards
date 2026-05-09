@@ -1,6 +1,6 @@
 #ifndef MODEL_AERODYNAMICS_H
 #define MODEL_AERODYNAMICS_H
-#include "application/estimator/estimator_internal.h"
+#include "application/estimator/estimator_types.h"
 #include "application/estimator/model/model_airdata.h"
 #include "third_party/rocketlib/include/common.h"
 

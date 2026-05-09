@@ -2,8 +2,9 @@
 #include "application/estimator/ekf.h"
 #include "application/estimator/pad_filter.h"
 #include "application/estimator/projector.h"
-#include "application/fsm/fsm_types.h"
+#include "application/fsm/fsm.h"
 #include "application/logger/log.h"
+#include "common/gnc/gnc_types.h"
 
 w_status_t estimator_module(const estimator_module_input_t *input, fsm_state_t flight_phase,
 							estimator_module_ctx_t *ctx, controller_input_t *output_to_controller) {
@@ -78,7 +79,7 @@ w_status_t estimator_module(const estimator_module_input_t *input, fsm_state_t f
 						  input->encoder_is_dead);
 
 			// controller post-processing
-			*output_to_controller = estimator_controller_projector(&ctx->x);
+			// *output_to_controller = estimator_controller_projector(&ctx->x);
 			break;
 
 		default:

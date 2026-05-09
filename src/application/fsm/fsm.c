@@ -10,21 +10,28 @@
 #include "drivers/timer/timer.h"
 
 static uint8_t QUEUE_TIMEOUT_MS = 0;
-static uint8_t MAX_PROCESS_FP_QUEUE_EVENTS =
-	3; // this is the max amount of flight phase events that will be processed from the flight phase
-	   // queue (this does not count sensor base transitions)
+// this is the max amount of flight phase events that will be processed from the flight phase
+// queue (this does not count sensor base transitions)
+static uint8_t MAX_PROCESS_FP_QUEUE_EVENTS = 3;
 static uint8_t FSM_PERIOD_MS = 2;
 
 typedef struct {
 	estimator_module_ctx_t *estimator_context; // global instance of estimator
-	controller_ctx_t *controller_context; // global instance of controller
+	controller_ctx_t *p_controller_context; // global instance of controller
 	const all_sensors_data_t *all_sensors_input; // imu data collected for this run
 	uint32_t timestamp_ms; // curr timestamp
 	fsm_state_t curr_state;
-	flight_phase_ctx_t *flight_phase_context; // global instance of flight phase
+	flight_phase_ctx_t *p_flight_phase_context; // global instance of flight phase
 } fsm_inputs_t;
 
 void fsm_exec(const fsm_inputs_t *p_input) {
+	navigator_input_t navigator_input = {};
+	navigator_output_t navigator_output = {};
+	controller_input_t controller_input = {};
+	controller_output_t controller_output = {};
+
+	// TODO: convert fsm_inputs into the nav/cntl inputs
+
 	switch (p_input->curr_state) {
 		case STATE_IDLE:
 			// do stuff
@@ -33,24 +40,22 @@ void fsm_exec(const fsm_inputs_t *p_input) {
 		case STATE_SE_INIT:
 		case STATE_BOOST:
 			estimator_step(p_input->estimator_context,
-						   p_input->curr_state,
-						   p_input->all_sensors_input,
-						   &(p_input->controller_context->new_input_state),
-						   &(p_input->controller_context->cmd_output),
+						   &navigator_input,
+						   &navigator_output,
 						   0); // (ignore loop_count var for now)
 			break;
 
 		case STATE_RECOVERY:
 		case STATE_ACT_ALLOWED:
 			estimator_step(p_input->estimator_context,
-						   p_input->curr_state,
-						   p_input->all_sensors_input,
-						   &(p_input->controller_context->new_input_state),
-						   &(p_input->controller_context->cmd_output),
+						   &navigator_input,
+						   &navigator_output,
 						   0); // (ignore loop_count var for now)
-			controller_step(p_input->controller_context,
-							p_input->curr_state,
-							p_input->flight_phase_context->act_allowed_timestamp_ms,
+
+			controller_step(p_input->p_controller_context,
+							&controller_input,
+							&controller_output,
+							p_input->p_flight_phase_context->act_allowed_timestamp_ms,
 							p_input->timestamp_ms);
 			// TODO: motor
 			break;
@@ -68,14 +73,14 @@ void fsm_do_transitions(fsm_inputs_t *p_input) {
 
 	// perform timer based state transitions
 	flight_phase_event_t timer_event = EVENT_NONE;
-	if (W_SUCCESS == flight_phase_timer_detection(p_input->flight_phase_context,
+	if (W_SUCCESS == flight_phase_timer_detection(p_input->p_flight_phase_context,
 												  &p_input->curr_state,
 												  p_input->timestamp_ms,
 												  &timer_event)) {
 		if (EVENT_NONE != timer_event) {
 			if (W_SUCCESS != flight_phase_update_state(timer_event,
 													   &p_input->curr_state,
-													   p_input->flight_phase_context)) {
+													   p_input->p_flight_phase_context)) {
 				// TODO: error handling
 			}
 		}
@@ -89,7 +94,7 @@ void fsm_do_transitions(fsm_inputs_t *p_input) {
 	// since queue receive fails when there are nothing in the queue so that can be used here
 	while ((num_events < MAX_PROCESS_FP_QUEUE_EVENTS) && (EVENT_NONE != queue_event)) {
 		if (W_SUCCESS != flight_phase_update_state(
-							 queue_event, &p_input->curr_state, p_input->flight_phase_context)) {
+							 queue_event, &p_input->curr_state, p_input->p_flight_phase_context)) {
 			// TODO: error handling
 		}
 		num_events++;
@@ -102,14 +107,14 @@ void fsm_do_transitions(fsm_inputs_t *p_input) {
 	// perform sensor transitions
 	// this is done last to make sure any of the new async or timer events can be processed first
 	flight_phase_event_t sensor_event = EVENT_NONE;
-	if (W_SUCCESS == flight_phase_sensor_detection(p_input->flight_phase_context,
+	if (W_SUCCESS == flight_phase_sensor_detection(p_input->p_flight_phase_context,
 												   &p_input->curr_state,
 												   p_input->all_sensors_input,
 												   &sensor_event)) {
 		if (EVENT_NONE != sensor_event) {
 			if (W_SUCCESS != flight_phase_update_state(sensor_event,
 													   &p_input->curr_state,
-													   p_input->flight_phase_context)) {
+													   p_input->p_flight_phase_context)) {
 				// TODO: error handling
 			}
 		}
@@ -148,8 +153,8 @@ void fsm_task(void *args) {
 	g_estimator_context.x.CL = 3;
 
 	inputs.estimator_context = &g_estimator_context;
-	inputs.controller_context = &g_controller_context;
-	inputs.flight_phase_context = &g_flight_phase_context;
+	inputs.p_controller_context = &g_controller_context;
+	inputs.p_flight_phase_context = &g_flight_phase_context;
 	inputs.all_sensors_input = &g_all_sensors_input;
 
 	// initialize fsm state

@@ -3,7 +3,7 @@
 
 // JACOBIANS HELPER FUNCTIONS
 
-#include "application/estimator/estimator_internal.h"
+#include "application/estimator/estimator_types.h"
 
 /**
  * @brief jacobians matrix definitions

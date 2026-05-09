@@ -1,20 +1,12 @@
 #ifndef PAD_FILTER_H
 #define PAD_FILTER_H
 
-#include "application/estimator/estimator_internal.h"
+#include "application/estimator/estimator.h"
+#include "application/estimator/estimator_types.h"
 #include "common/math/math.h"
 #include "third_party/rocketlib/include/common.h"
 #include <stdbool.h>
 #include <stdint.h>
-
-/**
- * this holds persistent data for 1 instance of a pad_filter (ie, its context)
- */
-typedef struct {
-	y_imu_t filtered_1;
-	y_imu_t filtered_2;
-	bool is_initialized;
-} pad_filter_ctx_t;
 
 /**
  * @brief Initialize the pad filter. must only run once in the whole program

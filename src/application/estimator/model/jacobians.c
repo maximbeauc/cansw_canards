@@ -1,5 +1,5 @@
 #include "application/estimator/model/jacobians.h"
-#include "application/estimator/estimator_internal.h"
+#include "application/estimator/estimator_types.h"
 
 void write_pData(double *jacobian_flat, int start_coor_x, int start_coor_y, int num_row,
 				 int num_col, const double *flat_data) {

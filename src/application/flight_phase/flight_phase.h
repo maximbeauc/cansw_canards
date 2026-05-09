@@ -6,10 +6,21 @@
 #include "FreeRTOS.h"
 #include "queue.h"
 
-#include "application/estimator/estimator_types.h"
-#include "application/flight_phase/flight_phase_types.h"
-#include "application/fsm/fsm_types.h"
+#include "application/fsm/fsm.h"
+#include "common/gnc/gnc_types.h"
 #include "rocketlib/include/common.h"
+
+/**
+ * Enum representing a state transition event
+ */
+typedef enum {
+	EVENT_NONE,
+	EVENT_ESTIMATOR_INIT,
+	EVENT_INJ_OPEN,
+	EVENT_ACT_DELAY_ELAPSED,
+	EVENT_FLIGHT_ELAPSED,
+	EVENT_RESET
+} flight_phase_event_t;
 
 typedef struct flight_phase_ctx_t {
 	uint32_t launch_timestamp_ms;

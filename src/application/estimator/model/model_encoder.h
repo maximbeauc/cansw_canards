@@ -1,7 +1,7 @@
 #ifndef MODEL_ENCODER_H
 #define MODEL_ENCODER_H
 
-#include "application/estimator/estimator_internal.h"
+#include "application/estimator/estimator_types.h"
 
 /**
  * model measurement encoder function

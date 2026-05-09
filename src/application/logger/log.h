@@ -4,8 +4,8 @@
 #include "rocketlib/include/common.h"
 #include <stdint.h>
 // Include headers for structs used in log_data_container_t
-#include "application/controller/controller_types.h" // For controller_input_t, controller_output_t
 #include "application/imu_handler/imu_handler.h"
+#include "common/gnc/gnc_types.h"
 
 /* Size of a single buffer (bytes) */
 #define LOG_BUFFER_SIZE 32768

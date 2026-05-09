@@ -6,11 +6,8 @@
 
 #include "FreeRTOS.h"
 
-#include "application/controller/controller_types.h"
-#include "application/controller/gain_table.h"
+#include "common/gnc/gnc_types.h"
 #include "third_party/rocketlib/include/common.h"
-
-#include "application/fsm/fsm_types.h"
 
 /* Enums/Types */
 
@@ -38,8 +35,6 @@ typedef struct {
  * state of a controller instance.
  */
 typedef struct controller_ctx_t {
-	controller_output_t cmd_output;
-	controller_input_t new_input_state;
 	uint32_t last_run_ms; // last time the controller did a full loop. use for rate-limiting
 } controller_ctx_t;
 
@@ -58,8 +53,8 @@ w_status_t controller_init(void);
  * actuation allowed)
  * @param curr_timestamp_ms the currrent timestamp
  */
-w_status_t controller_step(controller_ctx_t *context, const fsm_state_t curr_fsm_state,
-						   const uint32_t act_allowed_timestamp_ms,
+w_status_t controller_step(controller_ctx_t *context, controller_input_t *const input,
+						   controller_output_t *output, const uint32_t act_allowed_timestamp_ms,
 						   const uint32_t curr_timestamp_ms);
 
 /**

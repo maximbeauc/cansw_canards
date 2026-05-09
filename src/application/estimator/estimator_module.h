@@ -5,24 +5,11 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "application/controller/controller_types.h"
-#include "application/estimator/estimator_internal.h"
+#include "application/estimator/estimator.h"
 #include "application/estimator/estimator_types.h"
 #include "application/estimator/pad_filter.h"
-#include "application/fsm/fsm_types.h"
-
-/**
- * persistent state updated by estimator and fsm
- */
-typedef struct estimator_module_ctx_t {
-	x_state_t x;
-	double P_flat[SIZE_STATE * SIZE_STATE];
-	y_imu_t bias_movella;
-	y_imu_t bias_pololu;
-	double t_sec; // previous timestamp
-	// estimator ctx must have exactly 1 pad filter ctx
-	pad_filter_ctx_t pad_filter_ctx;
-} estimator_module_ctx_t;
+#include "application/fsm/fsm.h"
+#include "common/gnc/gnc_types.h"
 
 /**
  * input to estimator_module function
