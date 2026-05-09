@@ -9,11 +9,11 @@
 #include "application/imu_handler/imu_handler.h"
 #include "drivers/timer/timer.h"
 
-static uint8_t QUEUE_TIMEOUT_MS = 0;
+static const uint8_t QUEUE_TIMEOUT_MS = 0;
 // this is the max amount of flight phase events that will be processed from the flight phase
 // queue (this does not count sensor base transitions)
-static uint8_t MAX_PROCESS_FP_QUEUE_EVENTS = 3;
-static uint8_t FSM_PERIOD_MS = 2;
+#define MAX_PROCESS_FP_EVENTS 5
+static const uint8_t FSM_PERIOD_MS = 2;
 
 typedef struct {
 	estimator_module_ctx_t *estimator_context; // global instance of estimator
@@ -112,36 +112,29 @@ void fsm_exec(const fsm_inputs_t *p_input) {
 }
 
 void fsm_do_transitions(fsm_inputs_t *p_input) {
-	// TODO: consider where event queue should live and how to access it
+	flight_phase_event_t event_array[MAX_PROCESS_FP_EVENTS] = {};
 
-	// perform timer based state transitions
-	flight_phase_event_t timer_event = flight_phase_timer_detection(
+	// collect all of the events
+	uint8_t current_index = 0;
+
+	event_array[current_index] = flight_phase_timer_detection(
 		p_input->p_flight_phase_context, p_input->curr_state, p_input->timestamp_ms);
+	current_index++;
 
-	p_input->curr_state = flight_phase_update_state(
-		timer_event, p_input->curr_state, p_input->p_flight_phase_context);
+	event_array[current_index] = flight_phase_sensor_detection(
+		p_input->p_flight_phase_context, p_input->curr_state, p_input->all_sensors_input);
+	current_index++;
 
-	// empty state queue (or as much as possible) and perfrom state transitions
-	flight_phase_event_t queue_event = flight_phase_get_queue_event(QUEUE_TIMEOUT_MS);
-	uint8_t num_events = 0;
-	// since queue receive fails when there are nothing in the queue so that can be used here
-	while (num_events < MAX_PROCESS_FP_QUEUE_EVENTS) {
-		// process the new event
-		p_input->curr_state = flight_phase_update_state(
-			queue_event, p_input->curr_state, p_input->p_flight_phase_context);
-
-		// get next event
-		num_events++;
-		queue_event = flight_phase_get_queue_event(QUEUE_TIMEOUT_MS);
+	// asnc events
+	while (current_index < MAX_PROCESS_FP_EVENTS) {
+		event_array[current_index] = flight_phase_get_queue_event(QUEUE_TIMEOUT_MS);
+		current_index++;
 	}
 
-	// perform sensor transitions
-	// this is done last to make sure any of the new async or timer events can be processed first
-	flight_phase_event_t sensor_event = flight_phase_sensor_detection(
-		p_input->p_flight_phase_context, p_input->curr_state, p_input->all_sensors_input);
-
-	p_input->curr_state = flight_phase_update_state(
-		sensor_event, p_input->curr_state, p_input->p_flight_phase_context);
+	for (uint8_t i = 0; i < MAX_PROCESS_FP_EVENTS; i++) {
+		p_input->curr_state = flight_phase_update_state(
+			event_array[i], p_input->curr_state, p_input->p_flight_phase_context);
+	}
 }
 
 void fsm_task(void *args) {
