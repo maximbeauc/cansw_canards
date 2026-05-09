@@ -156,6 +156,10 @@ fsm_state_t flight_phase_update_state(flight_phase_event_t event, fsm_state_t cu
 		return curr_state;
 	}
 
+	if (EVENT_NONE == event) {
+		return curr_state;
+	}
+
 	fsm_state_t new_state = curr_state;
 
 	switch (curr_state) {
@@ -225,8 +229,7 @@ fsm_state_t flight_phase_update_state(flight_phase_event_t event, fsm_state_t cu
 			break;
 		default:
 			log_text(10, "FlightPhase", "Unhandled state %d", curr_state);
-			new_state = STATE_ERROR; // Ensure state becomes ERROR
-			return new_state;
+			new_state = curr_state; // return thee same state
 			break;
 	}
 

@@ -117,18 +117,20 @@ void fsm_do_transitions(fsm_inputs_t *p_input) {
 	// perform timer based state transitions
 	flight_phase_event_t timer_event = flight_phase_timer_detection(
 		p_input->p_flight_phase_context, p_input->curr_state, p_input->timestamp_ms);
-	if (EVENT_NONE != timer_event) {
-		p_input->curr_state = flight_phase_update_state(
-			timer_event, p_input->curr_state, p_input->p_flight_phase_context);
-	}
+
+	p_input->curr_state = flight_phase_update_state(
+		timer_event, p_input->curr_state, p_input->p_flight_phase_context);
 
 	// empty state queue (or as much as possible) and perfrom state transitions
 	flight_phase_event_t queue_event = flight_phase_get_queue_event(QUEUE_TIMEOUT_MS);
 	uint8_t num_events = 0;
 	// since queue receive fails when there are nothing in the queue so that can be used here
-	while ((num_events < MAX_PROCESS_FP_QUEUE_EVENTS) && (EVENT_NONE != queue_event)) {
+	while (num_events < MAX_PROCESS_FP_QUEUE_EVENTS) {
+		// process the new event
 		p_input->curr_state = flight_phase_update_state(
-			timer_event, p_input->curr_state, p_input->p_flight_phase_context);
+			queue_event, p_input->curr_state, p_input->p_flight_phase_context);
+
+		// get next event
 		num_events++;
 		queue_event = flight_phase_get_queue_event(QUEUE_TIMEOUT_MS);
 	}
@@ -137,17 +139,14 @@ void fsm_do_transitions(fsm_inputs_t *p_input) {
 	// this is done last to make sure any of the new async or timer events can be processed first
 	flight_phase_event_t sensor_event = flight_phase_sensor_detection(
 		p_input->p_flight_phase_context, p_input->curr_state, p_input->all_sensors_input);
-	if (EVENT_NONE != sensor_event) {
-		p_input->curr_state = flight_phase_update_state(
-			timer_event, p_input->curr_state, p_input->p_flight_phase_context);
-	}
+
+	p_input->curr_state = flight_phase_update_state(
+		sensor_event, p_input->curr_state, p_input->p_flight_phase_context);
 }
 
 void fsm_task(void *args) {
 	(void)args;
 	TickType_t last_wake_time = xTaskGetTickCount();
-
-	// consider how to establish
 
 	while (1) {
 		if (W_SUCCESS != timer_get_ms(&(g_inputs.timestamp_ms))) {
