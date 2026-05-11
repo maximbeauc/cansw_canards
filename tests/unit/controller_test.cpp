@@ -22,17 +22,20 @@
 // }
 
 // // Define Fakes
+// // flight_phase_state_t flight_phase_get_state(void);
+// FAKE_VALUE_FUNC(flight_phase_state_t, flight_phase_get_state);
 // // bool get_analog_data(const can_msg_t *msg, can_analog_sensor_id_t *sensor_id, uint16_t *value);
 // FAKE_VALUE_FUNC(bool, get_analog_data, const can_msg_t *, can_analog_sensor_id_t *, uint16_t *);
 // FAKE_VOID_FUNC(proc_handle_fatal_error, const char *);
 // // w_status_t can_handler_transmit(const can_msg_t *msg);
 // FAKE_VALUE_FUNC(w_status_t, can_handler_transmit, const can_msg_t *);
+// FAKE_VALUE_FUNC(w_status_t, flight_phase_get_act_allowed_ms, uint32_t *);
 // FAKE_VALUE_FUNC_VARARG(w_status_t, log_text, uint32_t, const char *, const char *, ...);
 // FAKE_VALUE_FUNC(w_status_t, log_data, uint32_t, log_data_type_t, const log_data_container_t *);
-// FAKE_VALUE_FUNC(
-//     bool, build_actuator_analog_cmd_msg, can_msg_prio_t, uint32_t, can_actuator_id_t, uint16_t,
-//     can_msg_t *
-// );
+
+// TODO: add unit test for these new can functions
+// FAKE_VALUE_FUNC(w_status_t, can_encode_scaled_float, can_scaling_types_t, float32_t, void*);
+// FAKE_VOID_FUNC(build_analog_sensor_16bit_msg, can_msg_prio_t, uint16_t, can_analog_sensor_id_t, uint16_t, can_msg_t *);
 
 // // TODO: confirm with Finn and Tristan with actual tolerance
 // static double CMD_TOLERANCE_RAD = M_PI / (180.0 * 1000.0); // this is based on the error being a single millidegree since rounding to integer
@@ -45,19 +48,25 @@
 // //     return (uint16_t)(res_int16); 
 // // }
 
-
 // class ControllerTest : public ::testing::Test {
 // protected:
 //     void SetUp() override {
+//         RESET_FAKE(flight_phase_get_state);
 //         RESET_FAKE(get_analog_data);
 //         RESET_FAKE(proc_handle_fatal_error);
 //         RESET_FAKE(can_handler_transmit);
 //         RESET_FAKE(log_text);
 //         RESET_FAKE(log_data);
-//         RESET_FAKE(build_actuator_analog_cmd_msg);
+//         RESET_FAKE(flight_phase_get_act_allowed_ms);
 //         RESET_FAKE(xQueueReceive);
 //         FFF_RESET_HISTORY();
 //         // default to everything passing
+//         xQueueReceive_fake.return_val = pdTRUE;
+//         xQueueReceive_fake.custom_fake = xQueueReceive_custom;
+//         can_handler_transmit_fake.return_val = W_SUCCESS;
+//         // Register the custom fake for flight_phase_get_act_allowed_ms
+//         flight_phase_get_act_allowed_ms_fake.custom_fake = flight_phase_get_act_allowed_custom;
+//         flight_phase_get_act_allowed_ms_fake.return_val = W_SUCCESS;
 //         test_act_allowed_ms_value = 0;
 //     }
 
@@ -70,35 +79,12 @@
 //     EXPECT_EQ(res, W_SUCCESS);
 // }
 
-// TEST_F(ControllerTest, StepErrorAsInvalidPtr) {
+// TEST_F(ControllerTest, RunLoopPadPhase) {
 //     // Arrange
-
-//     // initalize context
-//     controller_ctx_t ctx = {.cmd_output = {.cmd_updated = false}, .new_input_state = {.state_updated = true}};
-//     const fsm_state_t curr_fsm_state = STATE_IDLE;
-//     const uint32_t act_allowed_timestamp_ms = 1000;
-//     const uint32_t curr_timestamp_ms = test_act_allowed_ms_value + act_allowed_timestamp_ms;
+//     flight_phase_get_state_fake.return_val = STATE_IDLE;
 
 //     // Act
-//     w_status_t actual_res = controller_step(NULL, curr_fsm_state, act_allowed_timestamp_ms, curr_timestamp_ms);
-
-//     // Assert
-//     EXPECT_EQ(actual_res, W_INVALID_PARAM);
-//     EXPECT_FALSE(ctx.cmd_output.cmd_updated);
-//     EXPECT_EQ(log_text_fake.call_count, 1);
-// }
-
-// TEST_F(ControllerTest, StepPadPhase) {
-//     // Arrange
-
-//     // initalize context
-//     controller_ctx_t ctx = {.cmd_output = {.cmd_updated = false}, .new_input_state = {.state_updated = true}};
-//     const fsm_state_t curr_fsm_state = STATE_IDLE;
-//     const uint32_t act_allowed_timestamp_ms = 1000;
-//     const uint32_t curr_timestamp_ms = test_act_allowed_ms_value + act_allowed_timestamp_ms;
-
-//     // Act
-//     w_status_t actual_res = controller_step(&ctx, curr_fsm_state, act_allowed_timestamp_ms, curr_timestamp_ms);
+//     w_status_t actual_res = controller_run_loop();
 
 //     // Assert
 //     EXPECT_EQ(actual_res, W_SUCCESS);
@@ -204,8 +190,8 @@
 
 //     // Assert
 //     EXPECT_EQ(actual_res, W_SUCCESS);
-//     EXPECT_TRUE(ctx.cmd_output.cmd_updated);
-//     EXPECT_NEAR(ctx.cmd_output.commanded_angle, 0.02005049, CMD_TOLERANCE_RAD);
+//     EXPECT_EQ(can_handler_transmit_fake.call_count, 1);
+//     // TODO redefine how to test the outputs to match the expected output
 // }
 
 // TEST_F(ControllerTest, StepActAllowedStep2) {
@@ -230,8 +216,8 @@
 
 //     // Assert
 //     EXPECT_EQ(actual_res, W_SUCCESS);
-//     EXPECT_TRUE(ctx.cmd_output.cmd_updated);
-//     EXPECT_NEAR(ctx.cmd_output.commanded_angle, -0.14380301, CMD_TOLERANCE_RAD);
+//     EXPECT_EQ(can_handler_transmit_fake.call_count, 1);
+//     // TODO redefine how to test the outputs to match the expected output
 // }
 
 // TEST_F(ControllerTest, StepActAllowedOutOfBounds) {
@@ -283,6 +269,6 @@
 
 //     // Assert
 //     EXPECT_EQ(actual_res, W_SUCCESS);
-//     EXPECT_TRUE(ctx.cmd_output.cmd_updated);
-//     EXPECT_NEAR(ctx.cmd_output.commanded_angle, -0.14380301, CMD_TOLERANCE_RAD);
+//     EXPECT_EQ(can_handler_transmit_fake.call_count, 1);
+//     // TODO redefine how to test the outputs to match the expected output
 // }

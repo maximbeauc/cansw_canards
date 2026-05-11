@@ -8,6 +8,7 @@
 #include <string.h>
 
 extern "C" {
+#include "application/can_handler/can_handler.h"
 #include "FreeRTOS.h"
 #include "application/estimator/estimator_types.h"
 #include "application/imu_handler/imu_handler.h"
@@ -49,20 +50,25 @@ extern "C" {
     FAKE_VALUE_FUNC(w_status_t, log_data, uint32_t, log_data_type_t, const log_data_container_t*);
     FAKE_VOID_FUNC(log_task, void*);
 
-    // fake can stuff
-    // w_status_t can_handler_transmit(const can_msg_t *msg);
-    FAKE_VALUE_FUNC(w_status_t, can_handler_transmit, const can_msg_t*);
-    FAKE_VALUE_FUNC(
-        bool, build_baro_data_msg, can_msg_prio_t, uint16_t, can_imu_id_t, uint32_t, uint16_t,
-        can_msg_t*
-    );
-    FAKE_VALUE_FUNC(
-        bool, build_imu_data_msg, can_msg_prio_t, uint16_t, char, can_imu_id_t, uint16_t, uint16_t,
-        can_msg_t*
-    );
-    FAKE_VALUE_FUNC(
-        bool, build_mag_data_msg, can_msg_prio_t, uint16_t, char, can_imu_id_t, uint16_t, can_msg_t*
-    );
+// fake can stuff
+// w_status_t can_handler_transmit(const can_msg_t *msg);
+FAKE_VALUE_FUNC(w_status_t, can_handler_transmit, const can_msg_t *);
+// TODO: add unit tests for these new canlib message builders
+// FAKE_VALUE_FUNC(w_status_t, can_encode_scaled_int, can_scaling_types_t, int64_t, void*);
+FAKE_VOID_FUNC(build_analog_sensor_16bit_msg, can_msg_prio_t, uint16_t, can_analog_sensor_id_t, uint16_t, can_msg_t *);
+FAKE_VOID_FUNC(build_3d_analog_sensor_16bit_msg, can_msg_prio_t, uint16_t, can_dem_3d_sensor_id_t, uint16_t, uint16_t, uint16_t, can_msg_t *);
+FAKE_VOID_FUNC(build_2d_analog_sensor_24bit_msg, can_msg_prio_t, uint16_t, can_dem_2d_sensor_id_t, uint32_t, uint32_t, can_msg_t *);
+// FAKE_VALUE_FUNC(
+//     bool, build_baro_data_msg, can_msg_prio_t, uint16_t, can_imu_id_t, uint32_t, uint16_t,
+//     can_msg_t *
+// );
+// FAKE_VALUE_FUNC(
+//     bool, build_imu_data_msg, can_msg_prio_t, uint16_t, char, can_imu_id_t, uint16_t, uint16_t,
+//     can_msg_t *
+// );
+// FAKE_VALUE_FUNC(
+//     bool, build_mag_data_msg, can_msg_prio_t, uint16_t, char, can_imu_id_t, uint16_t, can_msg_t *
+// );
 
     // Static buffer for IMU data capture in tests
     static all_sensors_data_t captured_data;
@@ -169,9 +175,9 @@ protected:
 		RESET_FAKE(altimu_get_mag_data);
 		RESET_FAKE(altimu_get_baro_data);
 		RESET_FAKE(altimu_check_sanity);
-		RESET_FAKE(build_imu_data_msg);
+		// RESET_FAKE(build_imu_data_msg);
 		RESET_FAKE(can_handler_transmit);
-		RESET_FAKE(build_baro_data_msg);
+		// RESET_FAKE(build_baro_data_msg);
 		RESET_FAKE(movella_init);
 		RESET_FAKE(movella_get_data);
 
@@ -483,9 +489,12 @@ TEST_F(ImuHandlerTest, GetFreshMeasWithInvalidPtr) {
 // 	EXPECT_EQ(result, W_SUCCESS); // Expect overall success
 
 // 	// Verify CAN message build and transmit calls
-// 	EXPECT_EQ(build_imu_data_msg_fake.call_count, 3); // 3 IMU messages (X, Y, Z)
-// 	EXPECT_EQ(build_baro_data_msg_fake.call_count, 1); // 1 barometer message
-// 	EXPECT_EQ(can_handler_transmit_fake.call_count, 7); // Total 7 CAN transmissions
+// 	// TODO: revive these with the new associated messages
+//     // EXPECT_EQ(build_imu_data_msg_fake.call_count, 3); // 3 IMU messages (X, Y, Z)
+// 	// EXPECT_EQ(build_baro_data_msg_fake.call_count, 1); // 1 barometer message
+
+//     // TODO: double check this is the new standard
+// 	EXPECT_EQ(can_handler_transmit_fake.call_count, 4); // Total 7 CAN transmissions
 
 // 	// Verify arguments for the first IMU message (X-axis)
 // 	EXPECT_EQ(build_imu_data_msg_fake.arg0_history[0], PRIO_LOW);

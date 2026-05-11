@@ -29,24 +29,18 @@
 
 // // Define Fakes
 // // w_status_t controller_get_latest_output(controller_output_t *output);
-// FAKE_VALUE_FUNC(w_status_t, controller_get_latest_output, controller_output_t*);
-// // fsm_state_t flight_phase_get_state(void);
-// FAKE_VALUE_FUNC(fsm_state_t, flight_phase_get_state);
-// // w_status_t can_handler_register_callback(can_msg_type_t msg_type, can_callback_t callback);
-// FAKE_VALUE_FUNC(w_status_t, can_handler_register_callback, can_msg_type_t, can_callback_t);
+// FAKE_VALUE_FUNC(w_status_t, controller_get_latest_output, controller_output_t *);
+// // flight_phase_state_t flight_phase_get_state(void);
+// FAKE_VALUE_FUNC(flight_phase_state_t, flight_phase_get_state);
 // // w_status_t controller_update_inputs(controller_input_t *inputs);
-// FAKE_VALUE_FUNC(w_status_t, controller_update_inputs, controller_input_t*);
+// FAKE_VALUE_FUNC(w_status_t, controller_update_inputs, controller_input_t *);
 // // bool get_analog_data(const can_msg_t *msg, can_analog_sensor_id_t *sensor_id, uint16_t *value);
-// FAKE_VALUE_FUNC(bool, get_analog_data, const can_msg_t*, can_analog_sensor_id_t*, uint16_t*);
+// FAKE_VALUE_FUNC(bool, get_analog_data, const can_msg_t *, can_analog_sensor_id_t *, uint16_t *);
 // // bool build_state_est_data_msg(can_msg_prio_t prio, uint16_t timestamp, can_state_est_id_t id,
 // // const float *data, can_msg_t *msg);
-// FAKE_VALUE_FUNC(
-//     bool, build_state_est_data_msg, can_msg_prio_t, uint16_t, can_state_est_id_t, const float*,
-//     can_msg_t*
-// );
-// FAKE_VOID_FUNC(proc_handle_fatal_error, const char*);
+// FAKE_VOID_FUNC(proc_handle_fatal_error, const char *);
 // // w_status_t can_handler_transmit(const can_msg_t *msg);
-// FAKE_VALUE_FUNC(w_status_t, can_handler_transmit, const can_msg_t*);
+// FAKE_VALUE_FUNC(w_status_t, can_handler_transmit, const can_msg_t *);
 
 // // Define logging fakes directly in this file
 // FAKE_VALUE_FUNC0(w_status_t, log_init);
@@ -56,7 +50,7 @@
 
 // // Helper function to create a simple x_state_t for testing
 // x_state_t create_test_state() {
-//     x_state_t test_state = { 0 };
+//     x_state_t test_state = {0};
 //     test_state.attitude.w = 1.0;
 //     test_state.attitude.x = 0.1;
 //     test_state.attitude.y = 0.2;
@@ -73,39 +67,20 @@
 //     return test_state;
 // }
 
-// float captured_build_state_est_data[99];
-// uint32_t captured_build_state_est_data_count = 0;
-
-// bool build_state_est_data_msg_custom(
-//     can_msg_prio_t prio, uint16_t timestamp, can_state_est_id_t id, const float* data,
-//     can_msg_t* msg
-// ) {
-//     // Make sure we don't overflow the array
-//     EXPECT_TRUE(captured_build_state_est_data_count < 99);
-//     captured_build_state_est_data[captured_build_state_est_data_count++] = *data;
-
-//     // Return what the fake is configured to return
-//     return build_state_est_data_msg_fake.return_val;
-// }
 
 // // Reset all FFF fakes
 // void reset_fakes_helper() {
 //     RESET_FAKE(controller_get_latest_output);
 //     RESET_FAKE(flight_phase_get_state);
-//     RESET_FAKE(can_handler_register_callback);
 //     RESET_FAKE(controller_update_inputs);
 //     RESET_FAKE(get_analog_data);
 //     RESET_FAKE(timer_get_ms);
-//     RESET_FAKE(timer_get_tenth_ms);
-//     RESET_FAKE(build_state_est_data_msg);
 //     RESET_FAKE(can_handler_transmit);
 //     RESET_FAKE(log_text);
 //     RESET_FAKE(xQueueReceive);
 //     RESET_FAKE(xQueueOverwrite);
 //     RESET_FAKE(xQueueCreate);
 //     RESET_FAKE(xQueuePeek);
-//     captured_build_state_est_data_count = 0;
-//     build_state_est_data_msg_fake.custom_fake = build_state_est_data_msg_custom;
 //     timer_get_ms_fake.custom_fake = timer_get_ms_custom_fake;
 // }
 
@@ -115,10 +90,8 @@
 //         reset_fakes_helper();
 //         // default to everything passing
 //         xQueueReceive_fake.return_val = pdTRUE;
-//         build_state_est_data_msg_fake.return_val = true;
 //         can_handler_transmit_fake.return_val = W_SUCCESS;
 //         // use custom fake for build state est to capture the data params
-//         build_state_est_data_msg_fake.custom_fake = build_state_est_data_msg_custom;
 
 //         // initializes matrices in ekf
 //         ekf_init();
@@ -131,15 +104,12 @@
 // TEST_F(EstimatorTest, EstimatorInitSuccess) {
 //     // Arrange
 //     xQueueCreate_fake.return_val = (QueueHandle_t)1; // Simulate successful queue creation
-//     can_handler_register_callback_fake.return_val = W_SUCCESS;
 
 //     // Act
 //     w_status_t actual_ret = estimator_init();
 
 //     // Assert
 //     EXPECT_EQ(actual_ret, W_SUCCESS);
-//     EXPECT_EQ(can_handler_register_callback_fake.call_count, 1);
-//     EXPECT_EQ(can_handler_register_callback_fake.arg0_val, MSG_SENSOR_ANALOG);
 // }
 
 // TEST_F(EstimatorTest, EstimatorInitQueueFail) {
@@ -153,39 +123,40 @@
 //     EXPECT_EQ(actual_ret, W_FAILURE);
 // }
 
-// TEST_F(EstimatorTest, EstimatorInitCanFail) {
+// // -------- test imu data update ------
+
+// TEST_F(EstimatorTest, NominalUpdateImuData) {
 //     // Arrange
-//     can_handler_register_callback_fake.return_val = W_FAILURE; // Simulate failed CAN registration
-//     xQueueCreate_fake.return_val = (QueueHandle_t)1; // Simulate successful queue creation
+//     estimator_all_imus_input_t test_imu_data = {};
+//     xQueueOverwrite_fake.return_val =
+//         pdPASS; // xqueueoverwrite literally can't fail hence this is the only test case
 
 //     // Act
-//     w_status_t actual_ret = estimator_init();
+//     w_status_t actual_ret = estimator_update_imu_data(&test_imu_data);
 
 //     // Assert
-//     EXPECT_EQ(actual_ret, W_FAILURE);
+//     EXPECT_EQ(actual_ret, W_SUCCESS);
+//     EXPECT_EQ(xQueueOverwrite_fake.call_count, 1);
+//     EXPECT_EQ(xQueueOverwrite_fake.arg1_val, &test_imu_data);
 // }
 
 // // -------- test estimator task main loop -----
 
 // // --- pad state ---
-// TEST_F(EstimatorTest, EstimatorStepPadStateNominal) {
+// TEST_F(EstimatorTest, EstimatorRunLoopPadStateNominal) {
 //     // Arrange
+//     flight_phase_get_state_fake.return_val = STATE_IDLE; // Simulate flight phase state
 
 //     // Initialize required context
-//     estimator_module_ctx_t ctx = { 0 };
-//     fsm_state_t flight_phase_state = STATE_IDLE;
-//     all_sensors_data_t all_sensor_input = {0};
-//     controller_input_t new_input_state = {0};
-//     controller_output_t cmd_output = {0};
+//     estimator_module_ctx_t ctx = {0};
 
 //     // Act
-//     w_status_t actual_ret = estimator_step(&ctx, flight_phase_state, &all_sensor_input, &new_input_state, &cmd_output, 0);
+//     w_status_t actual_ret = estimator_run_loop(&ctx, 0);
 
 //     // Assert
 //     // expect do absolutely nothing!!!
 //     EXPECT_EQ(controller_get_latest_output_fake.call_count, 0);
 //     EXPECT_EQ(controller_update_inputs_fake.call_count, 0);
-//     EXPECT_EQ(build_state_est_data_msg_fake.call_count, 0);
 //     EXPECT_EQ(can_handler_transmit_fake.call_count, 0);
 // }
 
@@ -211,10 +182,14 @@
 // // TODO: add nominal pad filter tests
 
 // // --- flight but not act allowed ---
-// TEST_F(EstimatorTest, EstimatorStepBoostStateNominal) {
+// TEST_F(EstimatorTest, EstimatorRunLoopBoostStateNominal) {
 //     // Arrange
-//     timer_get_tenth_ms_fake.return_val = W_SUCCESS;
-//     build_state_est_data_msg_fake.return_val = true;
+//     flight_phase_get_state_fake.return_val = STATE_BOOST;
+//     xQueueReceive_fake.return_val = pdTRUE;
+//     xQueuePeek_fake.return_val = pdTRUE;
+//     controller_get_latest_output_fake.return_val = W_SUCCESS;
+//     controller_update_inputs_fake.return_val = W_SUCCESS;
+//     timer_get_ms_fake.return_val = W_SUCCESS;
 //     can_handler_transmit_fake.return_val = W_SUCCESS;
 //     log_text_fake.return_val = W_SUCCESS;
 
@@ -241,36 +216,15 @@
 //     // Arrange
 //     float expect_estimator_output; // TODO: fill in with real numbers
 
-//     timer_get_tenth_ms_fake.return_val = W_SUCCESS;
-//     build_state_est_data_msg_fake.return_val = true;
-//     can_handler_transmit_fake.return_val = W_SUCCESS;
-//     log_text_fake.return_val = W_SUCCESS;
-
-//     // Initialize required context
-//     estimator_module_ctx_t ctx = { 0 };
-//     fsm_state_t flight_phase_state = STATE_ACT_ALLOWED;
-//     all_sensors_data_t all_sensor_input = {0};
-//     controller_input_t new_input_state = {0};
-//     controller_output_t cmd_output = {0};
-//     new_input_state.state_updated = false;
-
-//     // Act
-//     w_status_t actual_ret = estimator_step(&ctx, flight_phase_state, &all_sensor_input, &new_input_state, &cmd_output, 0);
-
-//     // Assert
-//     // TODO: expect pad filter to NOT be running
-//     EXPECT_EQ(actual_ret, W_SUCCESS);
-//     // TODO: how to check if have checked the newest command angle
-//     // expect controller updates in this state
-//     EXPECT_TRUE(new_input_state.state_updated);
-// }
-
-// TEST_F(EstimatorTest, EstimatorStepRecoveryStateNominal) {
-//     // Arrange
-//     timer_get_tenth_ms_fake.return_val = W_SUCCESS;
-//     build_state_est_data_msg_fake.return_val = true;
-//     can_handler_transmit_fake.return_val = W_SUCCESS;
-//     log_text_fake.return_val = W_SUCCESS; // Set return for FFF fake
+    // flight_phase_get_state_fake.return_val = STATE_ACT_ALLOWED; // Simulate flight phase state
+    // xQueueReceive_fake.return_val = pdTRUE; // Simulate successful queue receive
+    // xQueuePeek_fake.return_val = pdTRUE; // Simulate successful queue peek
+    // controller_get_latest_output_fake.return_val =
+    //     W_SUCCESS; // Simulate successful controller output
+    // controller_update_inputs_fake.return_val = W_SUCCESS; // Simulate successful controller update
+    // timer_get_ms_fake.return_val = W_SUCCESS;
+    // can_handler_transmit_fake.return_val = W_SUCCESS;
+    // log_text_fake.return_val = W_SUCCESS; // Set return for FFF fake
 
 //     // Initialize required context
 //     estimator_module_ctx_t ctx = { 0 };
@@ -291,35 +245,36 @@
 //     EXPECT_EQ(can_handler_transmit_fake.call_count, STATE_ID_ENUM_MAX);
 // }
 
-// TEST_F(EstimatorTest, EstimatorStepFlightStateImuInvalidPtr) {
+// TEST_F(EstimatorTest, EstimatorRunLoopRecoveryStateNominal) {
 //     // Arrange
-//     float expect_estimator_output; // TODO: fill in with real numbers
-
-//     timer_get_tenth_ms_fake.return_val = W_SUCCESS;
-//     build_state_est_data_msg_fake.return_val = true;
+//     flight_phase_get_state_fake.return_val = STATE_RECOVERY; // Simulate flight phase state
+//     xQueueReceive_fake.return_val = pdTRUE; // Simulate successful queue receive
+//     xQueuePeek_fake.return_val = pdTRUE; // Simulate successful queue peek
+//     controller_get_latest_output_fake.return_val =
+//         W_SUCCESS; // Simulate successful controller output
+//     controller_update_inputs_fake.return_val = W_SUCCESS; // Simulate successful controller update
+//     timer_get_ms_fake.return_val = W_SUCCESS;
 //     can_handler_transmit_fake.return_val = W_SUCCESS;
-//     log_text_fake.return_val = W_SUCCESS;
+//     log_text_fake.return_val = W_SUCCESS; // Set return for FFF fake
 
 //     // Initialize required context
-//     estimator_module_ctx_t ctx = { 0 };
-//     fsm_state_t flight_phase_state = STATE_BOOST;
-//     controller_input_t new_input_state = {0};
-//     controller_output_t cmd_output = {0};
-//     new_input_state.state_updated = false;
+//     estimator_module_ctx_t ctx = {0};
 
 //     // Act
-//     w_status_t actual_ret = estimator_step(&ctx, flight_phase_state, NULL, &new_input_state, &cmd_output, 0);
+//     w_status_t actual_ret = estimator_run_loop(&ctx, 0);
 
 //     // Assert
-//     EXPECT_EQ(actual_ret, W_INVALID_PARAM);
-//     // expect no controller updates since something failed
-//     EXPECT_FALSE(new_input_state.state_updated);
+//     EXPECT_EQ(actual_ret, W_SUCCESS);
+//     EXPECT_EQ(xQueueReceive_fake.call_count, 2);
+//     // expect still doing control
+//     EXPECT_EQ(controller_update_inputs_fake.call_count, 1);
+//     // TODO: revive once we get can logging working again
+//     // EXPECT_EQ(can_handler_transmit_fake.call_count, STATE_ID_ENUM_MAX);
 // }
 
-// // TODO: add back when encoder is revived...
-// // TEST_F(EstimatorTest, EstimatorStepFlightStateQueueFail2) {
-// // //     // Arrange
-// //     float expect_estimator_output; // TODO: fill in with real numbers
+// TEST_F(EstimatorTest, EstimatorRunLoopFlightStateImuQueueFail) {
+//     // Arrange
+//     float expect_estimator_output; // TODO: fill in with real numbers
 
 // //     flight_phase_get_state_fake.return_val = STATE_BOOST; // Simulate flight phase state
 // //     xQueueReceive_fake.return_val = pdTRUE; // Simulate successful queue receive
@@ -409,25 +364,24 @@
 // //     // Act
 // //     w_status_t actual_ret = estimator_step(&ctx, 0);
 
-// //     // Assert
-// //     EXPECT_EQ(actual_ret, W_FAILURE);
-// //     EXPECT_EQ(xQueueReceive_fake.call_count, 2);
-// //     EXPECT_EQ(controller_get_latest_output_fake.call_count, 1);
-// //     EXPECT_EQ(controller_update_inputs_fake.call_count, 1);
-// //     // expect still log to can even if that failed
-// //     EXPECT_EQ(build_state_est_data_msg_fake.call_count, STATE_ID_ENUM_MAX);
-// //     EXPECT_EQ(can_handler_transmit_fake.call_count, STATE_ID_ENUM_MAX);
-// // }
+//     // Assert
+//     EXPECT_EQ(actual_ret, W_FAILURE);
+//     EXPECT_EQ(xQueueReceive_fake.call_count, 2);
+//     EXPECT_EQ(controller_get_latest_output_fake.call_count, 1);
+//     EXPECT_EQ(controller_update_inputs_fake.call_count, 1);
+//     // expect still log to can even if that failed
+//     // TODO: revive once we get logging back working
+//     // EXPECT_EQ(can_handler_transmit_fake.call_count, STATE_ID_ENUM_MAX);
+// }
 
-// // -------- Test estimator_log_state_to_can directly --------
-
+// TODO: revive these tests later
+// -------- Test estimator_log_state_to_can directly --------
 // TEST_F(EstimatorTest, EstimatorLogStateToCan_Nominal) {
 //     // Arrange
 //     x_state_t test_state = create_test_state();
 //     const uint16_t expected_timestamp = 0; // Assuming timer_get_ms returns 0 for simplicity here
 //     mock_timer_ms = expected_timestamp; // Assuming timer_get_ms returns 0 for simplicity here
 //     timer_get_ms_fake.return_val = W_SUCCESS; // Simulate timer success
-//     build_state_est_data_msg_fake.return_val = true; // Simulate build success
 //     can_handler_transmit_fake.return_val = W_SUCCESS; // Simulate transmit success
 //     log_text_fake.return_val = W_SUCCESS; // Set return for FFF fake
 
@@ -437,9 +391,6 @@
 //     // Assert
 //     EXPECT_EQ(status, W_SUCCESS); // Expect overall success
 //     EXPECT_EQ(timer_get_ms_fake.call_count, 1); // Timer called once
-//     EXPECT_EQ(
-//         build_state_est_data_msg_fake.call_count, STATE_ID_ENUM_MAX
-//     ); // Build called for each state
 //     EXPECT_EQ(
 //         can_handler_transmit_fake.call_count, STATE_ID_ENUM_MAX
 //     ); // Transmit called for each state
@@ -512,42 +463,41 @@
 //     ); // Transmit attempted for each
 // }
 
-// // TODO: consider how this would work with the refactor
-// // // Test to ensure CAN logging respects the rate limit within the run loop
-// // TEST_F(EstimatorTest, EstimatorStep_CanRateLimit) {
-// //     // Arrange
-// //     const uint32_t can_tx_rate = 20; // Requirement is 20 (10hz)
-// //     const uint32_t num_loops = 120; // Run for enough loops to cover multiple send cycles
-// //     uint32_t expected_can_calls = 0;
+// // Test to ensure CAN logging respects the rate limit within the run loop
+// TEST_F(EstimatorTest, EstimatorRunLoop_CanRateLimit) {
+//     // Arrange
+//     const uint32_t can_tx_rate = 20; // Requirement is 20 (10hz)
+//     const uint32_t num_loops = 120; // Run for enough loops to cover multiple send cycles
+//     uint32_t expected_can_calls = 0;
 
-// //     // Set up prerequisites for run loop to execute CAN logic
-// //     flight_phase_get_state_fake.return_val = STATE_BOOST; // Or any flight state
-// //     xQueueReceive_fake.return_val = pdTRUE;
-// //     xQueuePeek_fake.return_val = pdTRUE;
-// //     controller_get_latest_output_fake.return_val = W_SUCCESS;
-// //     controller_update_inputs_fake.return_val = W_SUCCESS;
-// //     timer_get_ms_fake.return_val = W_SUCCESS;
-// //     build_state_est_data_msg_fake.return_val = true;
-// //     can_handler_transmit_fake.return_val = W_SUCCESS;
-// //     log_text_fake.return_val = W_SUCCESS;
+//     // Set up prerequisites for run loop to execute CAN logic
+//     flight_phase_get_state_fake.return_val = STATE_BOOST; // Or any flight state
+//     xQueueReceive_fake.return_val = pdTRUE;
+//     xQueuePeek_fake.return_val = pdTRUE;
+//     controller_get_latest_output_fake.return_val = W_SUCCESS;
+//     controller_update_inputs_fake.return_val = W_SUCCESS;
+//     timer_get_ms_fake.return_val = W_SUCCESS;
+//     build_state_est_data_msg_fake.return_val = true;
+//     can_handler_transmit_fake.return_val = W_SUCCESS;
+//     log_text_fake.return_val = W_SUCCESS;
 
-// //     // Initialize required context
-// //     estimator_module_ctx_t ctx = { 0 };
+//     // Initialize required context
+//     estimator_module_ctx_t ctx = {0};
 
-// //     // Act
-// //     for (uint32_t i = 0; i < num_loops; ++i) {
-// //         estimator_run_loop(&ctx, i);
-// //         if (i % can_tx_rate == 0) {
-// //             expected_can_calls++;
-// //         }
-// //     }
+//     // Act
+//     for (uint32_t i = 0; i < num_loops; ++i) {
+//         estimator_run_loop(&ctx, i);
+//         if (i % can_tx_rate == 0) {
+//             expected_can_calls++;
+//         }
+//     }
 
-// //     // Assert
-// //     // Check that functions inside estimator_log_state_to_can were called the correct number of
-// //     // times
-// //     EXPECT_EQ(build_state_est_data_msg_fake.call_count, expected_can_calls * STATE_ID_ENUM_MAX);
-// //     EXPECT_EQ(can_handler_transmit_fake.call_count, expected_can_calls * STATE_ID_ENUM_MAX);
-// // }
+//     // Assert
+//     // Check that functions inside estimator_log_state_to_can were called the correct number of
+//     // times
+//     EXPECT_EQ(build_state_est_data_msg_fake.call_count, expected_can_calls * STATE_ID_ENUM_MAX);
+//     EXPECT_EQ(can_handler_transmit_fake.call_count, expected_can_calls * STATE_ID_ENUM_MAX);
+// }
 
 // // TODO: add actual full integration calculation tests
 
