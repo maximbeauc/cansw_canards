@@ -21,7 +21,6 @@ typedef enum {
 } can_packet_id_t;
 
 // Feedback message mode ID
-static const uint16_t CAN_PACKET_FEEDBACK = 0x10;
 static const uint16_t CAN_REAL_TIME_FEEDBACK = 0x29;
 static const uint16_t CAN_START_FRAME = 0x2C;
 
@@ -138,6 +137,14 @@ w_status_t ak45_driver_init(FDCAN_HandleTypeDef *hfdcan) {
 		return W_FAILURE;
 	}
 
+	// set current time to 0
+	uint32_t ext_id = ((uint32_t)CAN_PACKET_SET_ORIGIN_HERE << 8) | AK45_DRIVER_ID;
+	uint8_t zero_data[1] = {1};
+	if (ak45_can_transmit_ext(ext_id, zero_data, 1) != W_SUCCESS) {
+		log_text(LOG_WAIT_MS, "ak45", "ERROR: failed to reset to 0");
+		return W_FAILURE;
+	}
+
 	g_tx_errors = 0;
 	is_init = true;
 
@@ -146,7 +153,6 @@ w_status_t ak45_driver_init(FDCAN_HandleTypeDef *hfdcan) {
 }
 
 w_status_t ak45_send_position_cmd(float angle_deg) {
-	// TODO fix id
 	uint32_t ext_id = ((uint32_t)CAN_PACKET_SET_POS << 8) | AK45_DRIVER_ID;
 
 	int32_t pos_raw = (int32_t)(angle_deg * AK45_POS_CMD_SCALE);
@@ -212,7 +218,7 @@ static void ak45_fdcan_rx_callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo1
 		return;
 	}
 
-	uint32_t expected_id = ((uint32_t)CAN_PACKET_FEEDBACK << 8) | AK45_DRIVER_ID;
+	uint32_t expected_id = ((uint32_t)CAN_REAL_TIME_FEEDBACK << 8) | AK45_DRIVER_ID;
 
 	if (rx_header.IdType != FDCAN_EXTENDED_ID || rx_header.Identifier != expected_id) {
 		return;
