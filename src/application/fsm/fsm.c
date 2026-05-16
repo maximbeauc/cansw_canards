@@ -9,7 +9,6 @@
 #include "application/imu_handler/imu_handler.h"
 #include "drivers/timer/timer.h"
 
-static const uint8_t QUEUE_TIMEOUT_MS = 0;
 static const uint8_t FSM_PERIOD_MS = 2;
 
 typedef struct {
@@ -100,9 +99,8 @@ void fsm_exec(const fsm_ctx_t *p_ctx, const all_sensors_data_t *p_sensor_data) {
 }
 
 void fsm_do_transitions(fsm_ctx_t *p_ctx) {
-	p_ctx->curr_state = flight_phase_update_state(flight_phase_get_next_event(QUEUE_TIMEOUT_MS),
-												  p_ctx->curr_state,
-												  p_ctx->p_flight_phase_context);
+	p_ctx->curr_state = flight_phase_update_state(
+		flight_phase_get_next_event(), p_ctx->curr_state, p_ctx->p_flight_phase_context);
 }
 
 void fsm_task(void *args) {

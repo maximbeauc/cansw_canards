@@ -124,14 +124,10 @@ static w_status_t act_cmd_callback(const can_msg_t *msg) {
 	return W_SUCCESS;
 }
 
-/**
- * @brief get the newest event in the event queue
- * @param timeout_ms timeout time
- * @return return the newest event or return event none if empty
- */
-flight_phase_event_t flight_phase_get_next_event(uint8_t timeout_ms) {
+flight_phase_event_t flight_phase_get_next_event(void) {
 	flight_phase_event_t queue_event = EVENT_NONE;
-	if (pdPASS != xQueueReceive(event_queue, &queue_event, pdMS_TO_TICKS(timeout_ms))) {
+	// no waiting. Return immediately if no events are in the queue
+	if (pdPASS != xQueueReceive(event_queue, &queue_event, 0)) {
 		return EVENT_NONE;
 	}
 	return queue_event;

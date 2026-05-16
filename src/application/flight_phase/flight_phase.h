@@ -42,11 +42,10 @@ w_status_t flight_phase_init(void);
 w_status_t flight_phase_send_event(flight_phase_event_t event);
 
 /**
- * @brief get the next event that should be processed from the event queue
- * @param timeout_ms timeout time
- * @return return the next event or return EVENT_NONE otherwise
+ * @brief get the next event that is waiting to be consumed. Does not block (no waiting)
+ * @return return the next event or return EVENT_NONE if no events are waiting
  */
-flight_phase_event_t flight_phase_get_next_event(uint8_t timeout_ms);
+flight_phase_event_t flight_phase_get_next_event(void);
 
 /**
  * process 1 transition.
