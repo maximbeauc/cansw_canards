@@ -29,7 +29,7 @@ static can_callback_t callback_map[MSG_ID_ENUM_MAX] = {NULL};
 
 static w_status_t can_reset_callback(const can_msg_t *msg) {
 	bool need_reset = false;
-	if (W_SUCCESS != check_board_need_reset(msg, &need_reset)) {
+	if (check_board_need_reset(msg, &need_reset) != W_SUCCESS) {
 		log_text(1, "CANCallback", "ERROR: failed to read board reset");
 		return W_FAILURE;
 	}

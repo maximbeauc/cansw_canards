@@ -169,8 +169,8 @@ static w_status_t act_cmd_callback(const can_msg_t *msg) {
 	can_actuator_id_t msg_id;
 	can_actuator_state_t msg_state;
 
-	if ((W_SUCCESS != get_actuator_id(msg, &msg_id)) ||
-		(W_SUCCESS != get_cmd_actuator_state(msg, &msg_state))) {
+	if ((get_actuator_id(msg, &msg_id) != W_SUCCESS) ||
+		(get_cmd_actuator_state(msg, &msg_state) != W_SUCCESS)) {
 		log_text(1, "FlightPhase", "invalid actuator data");
 		return W_FAILURE;
 	}
