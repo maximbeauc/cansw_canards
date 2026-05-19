@@ -1,7 +1,7 @@
 // Add these includes for hardware handles
 #include "FreeRTOS.h"
 #include "adc.h" // For hadc1
-#include "fdcan.h" // For hfdcan1
+#include "fdcan.h" // For hfdcan1 and hfdcan3
 #include "i2c.h" // For hi2c2, hi2c4
 #include "stm32h7xx_hal.h"
 #include "task.h"

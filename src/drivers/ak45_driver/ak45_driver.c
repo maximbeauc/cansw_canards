@@ -1,9 +1,12 @@
-#include "drivers/ak45_driver/ak45_driver.h"
-#include "application/logger/log.h"
-#include "drivers/timer/timer.h"
+#include <string.h>
+
+#include "FreeRTOS.h"
 #include "fdcan.h"
 #include "queue.h"
-#include <string.h>
+
+#include "application/logger/log.h"
+#include "drivers/ak45_driver/ak45_driver.h"
+#include "drivers/timer/timer.h"
 
 // Motor CAN driver ID configurable on the servo, default 1
 static const uint16_t AK45_DRIVER_ID = 0x45;
@@ -81,7 +84,7 @@ static void ak45_parse_feedback(const uint8_t *data, ak45_feedback_t *fb) {
 		log_text(LOG_WAIT_MS, "ak45", "Invalid pointers");
 		return;
 	}
-	// TODO floating point multiplication in isr?
+
 	int16_t raw_pos = (int16_t)(((uint16_t)data[0] << 8) | data[1]);
 	fb->position_deg = (float32_t)raw_pos * AK45_POS_FB_SCALE;
 
@@ -100,9 +103,26 @@ static void ak45_parse_feedback(const uint8_t *data, ak45_feedback_t *fb) {
 	}
 }
 
-w_status_t ak45_send_position_cmd(float angle_deg);
+w_status_t ak45_send_position_cmd(float angle_deg) {
+	uint32_t ext_id = ((uint32_t)CAN_PACKET_SET_POS << 8) | AK45_DRIVER_ID;
+
+	int32_t pos_raw = (int32_t)(angle_deg * AK45_POS_CMD_SCALE);
+	uint8_t data[4];
+	data[0] = (uint8_t)((pos_raw >> 24) & 0xFF);
+	data[1] = (uint8_t)((pos_raw >> 16) & 0xFF);
+	data[2] = (uint8_t)((pos_raw >> 8) & 0xFF);
+	data[3] = (uint8_t)(pos_raw & 0xFF);
+
+	return ak45_can_transmit_ext(ext_id, data, FDCAN_DLC_BYTES_4);
+}
 
 w_status_t ak45_driver_init(FDCAN_HandleTypeDef *hfdcan) {
+	// check if the driver has inited
+	if (is_init) {
+		log_text(LOG_WAIT_MS, "ak45", "ERROR: attempting to reinit ak45 driver");
+		return W_FAILURE;
+	}
+
 	if (NULL == hfdcan) {
 		log_text(LOG_WAIT_MS, "ak45", "Invalid pointers");
 		return W_INVALID_PARAM;
@@ -136,6 +156,10 @@ w_status_t ak45_driver_init(FDCAN_HandleTypeDef *hfdcan) {
 		log_text(LOG_WAIT_MS, "ak45", "FDCAN start failed");
 		return W_FAILURE;
 	}
+
+	// to check if there has been a new can msg since start
+	recieved_can_msg = false;
+
 	if (HAL_FDCAN_ActivateNotification(g_ak45_hfdcan, FDCAN_IT_RX_FIFO1_NEW_MESSAGE, 0) != HAL_OK) {
 		log_text(LOG_WAIT_MS, "ak45", "FDCAN activate notification failed");
 		return W_FAILURE;
@@ -149,7 +173,7 @@ w_status_t ak45_driver_init(FDCAN_HandleTypeDef *hfdcan) {
 
 	// set current position to 0
 	uint8_t zero_data[1] = {0};
-	if (ak45_can_transmit_ext(ext_id, zero_data, 1) != W_SUCCESS) {
+	if (ak45_can_transmit_ext(ext_id, zero_data, FDCAN_DLC_BYTES_1) != W_SUCCESS) {
 		log_text(LOG_WAIT_MS, "ak45", "ERROR: failed to reset to 0");
 		return W_FAILURE;
 	}
@@ -161,35 +185,10 @@ w_status_t ak45_driver_init(FDCAN_HandleTypeDef *hfdcan) {
 	return W_SUCCESS;
 }
 
-w_status_t ak45_send_position_cmd(float angle_deg) {
-	uint32_t ext_id = ((uint32_t)CAN_PACKET_SET_POS << 8) | AK45_DRIVER_ID;
-
-	int32_t pos_raw = (int32_t)(angle_deg * AK45_POS_CMD_SCALE);
-	uint8_t data[4];
-	data[0] = (uint8_t)((pos_raw >> 24) & 0xFF);
-	data[1] = (uint8_t)((pos_raw >> 16) & 0xFF);
-	data[2] = (uint8_t)((pos_raw >> 8) & 0xFF);
-	data[3] = (uint8_t)(pos_raw & 0xFF);
-
-	return ak45_can_transmit_ext(ext_id, data, FDCAN_DLC_BYTES_4);
-}
-
 w_status_t ak45_send_disable_cmd(void) {
 	uint32_t ext_id = ((uint32_t)CAN_PACKET_SET_CURRENT << 8) | AK45_DRIVER_ID;
 	uint8_t data[4] = {0, 0, 0, 0};
-	return ak45_can_transmit_ext(ext_id, data, 4);
-}
-
-bool ak45_is_fatal_fault(ak45_fault_code_t fault) {
-	switch (fault) {
-		case AK45_FAULT_OVERVOLTAGE:
-		case AK45_FAULT_ABS_OVERCURRENT:
-		case AK45_FAULT_OVERTEMP_FET:
-		case AK45_FAULT_OVERTEMP_MOTOR:
-			return true;
-		default:
-			return false;
-	}
+	return ak45_can_transmit_ext(ext_id, data, FDCAN_DLC_BYTES_4);
 }
 
 w_status_t ak45_get_latest_feedback(ak45_feedback_t *fb) {
@@ -217,6 +216,8 @@ uint32_t ak45_get_tx_errors(void) {
  */
 static void ak45_fdcan_rx_callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo1ITs) {
 	recieved_can_msg = true;
+
+	// checks if the new message bit is not 0 (FDCAN_IT_RX_FIFO1_NEW_MESSAGE is the bit mask)
 	if (0 == (RxFifo1ITs & FDCAN_IT_RX_FIFO1_NEW_MESSAGE)) {
 		return;
 	}
@@ -244,5 +245,8 @@ static void ak45_fdcan_rx_callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo1
 }
 
 void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo1ITs) {
-	ak45_fdcan_rx_callback(hfdcan, RxFifo1ITs);
+	// make sure from the right can bus
+	if (g_ak45_hfdcan == hfdcan) {
+		ak45_fdcan_rx_callback(hfdcan, RxFifo1ITs);
+	}
 }
