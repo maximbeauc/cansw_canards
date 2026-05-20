@@ -34,6 +34,9 @@ typedef struct {
 	uint32_t timeout_ticks;
 } watchdog_task_t;
 
+// map for module IDs
+typedef health_status_t (*get_status_fn_t)(void);
+
 // watchdog initiailsations
 static watchdog_task_t watchdog_tasks[MAX_WATCHDOG_TASKS] = {0};
 static uint32_t num_watchdog_tasks = 0;
@@ -148,7 +151,7 @@ static w_status_t process_module_status(health_status_t status) {
 		msg.data[2] = status.module_id;
 		msg.data[3] = status.error_code;
 		msg.data[4] = status.error_code;
-		msg.data[5] = status.error_code; // fix later, turn error code into bitfield
+		msg.data[5] = status.error_code; // later implement error code as bitfield
 		msg.data[7] = status.severity;
 
 		// temporary debug msg
@@ -168,32 +171,39 @@ static w_status_t process_module_status(health_status_t status) {
 	return W_SUCCESS;
 }
 
+static const get_status_fn_t module_status_fns[MODULE_COUNT] = {
+    [MODULE_I2C]          = i2c_get_status,
+    [MODULE_ADC]          = adc_get_status,
+    [MODULE_CAN_HANDLER]  = can_handler_get_status,
+    [MODULE_ESTIMATOR]    = estimator_get_status,
+    [MODULE_CONTROLLER]   = controller_get_status,
+    [MODULE_SD_CARD]      = sd_card_get_status,
+    [MODULE_TIMER]        = timer_get_status,
+    [MODULE_GPIO]         = gpio_get_status,
+    [MODULE_FLIGHT_PHASE] = flight_phase_get_status,
+    [MODULE_IMU_HANDLER]  = imu_handler_get_status,
+    [MODULE_UART]         = uart_get_status,
+    [MODULE_LOGGER]       = logger_get_status,
+};
+
 /**
  * @brief Checks the status of all known modules by directly calling their get_status functions
  *
  * Simply calls each module's status function to trigger status reporting
  */
+
 static uint32_t check_modules_status(void) {
-	uint32_t status_bitfield = 0;
+    uint32_t status_bitfield = 0;
 
-	status_bitfield |= process_module_status(i2c_get_status());
-	status_bitfield |= process_module_status(adc_get_status());
-	status_bitfield |= process_module_status(can_handler_get_status());
-	status_bitfield |= process_module_status(estimator_get_status());
-	status_bitfield |= process_module_status(controller_get_status());
-	status_bitfield |= process_module_status(sd_card_get_status());
-	status_bitfield |= process_module_status(timer_get_status());
-	status_bitfield |= process_module_status(gpio_get_status());
-	status_bitfield |= process_module_status(flight_phase_get_status());
-	status_bitfield |= process_module_status(imu_handler_get_status());
-	status_bitfield |= process_module_status(uart_get_status());
-	status_bitfield |= process_module_status(logger_get_status());
+    for (int i = 0; i < MODULE_COUNT; i++) {
+        status_bitfield |= process_module_status(module_status_fns[i]());
+    }
 
-	if (status_bitfield != 0) {
-		status_bitfield |= (1 << E_CANARD_MODULE_FAILURE_OFFSET);
-	}
+    if (status_bitfield != 0) {
+        status_bitfield |= (1 << E_CANARD_MODULE_FAILURE_OFFSET);
+    }
 
-	return status_bitfield;
+    return status_bitfield;
 }
 
 // --- Fatal Error Handler Implementation ---
