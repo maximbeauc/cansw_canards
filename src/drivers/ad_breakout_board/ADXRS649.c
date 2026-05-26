@@ -48,8 +48,7 @@ static w_status_t adxrs649_self_test() {
 	uint32_t test_num = 0;
 
 	// SELF-TEST 1
-	status |=
-		gpio_write(GPIO_PIN_ADXRS649_ST1, GPIO_LEVEL_HIGH, 1); // TODO: create new GPIO pin for test
+	status |= gpio_write(GPIO_PIN_ADXRS649_ST1, GPIO_LEVEL_HIGH, 1);
 	vTaskDelay(pdMS_TO_TICKS(SELF_TEST_DELAY_MS));
 
 	status |= ads1219_get_millivolts(&g_ads_handle, &adc_voltage);
@@ -64,9 +63,7 @@ static w_status_t adxrs649_self_test() {
 
 	// make sure self-test 1 is turned off. Make sure the command is sent regardless of previous
 	// status
-	if (W_SUCCESS != gpio_write(GPIO_PIN_ADXRS649_ST1,
-								GPIO_LEVEL_LOW,
-								1)) { // TODO: create new GPIO pin for test
+	if (W_SUCCESS != gpio_write(GPIO_PIN_ADXRS649_ST1, GPIO_LEVEL_LOW, 1)) {
 		log_text(0, "ADXRS649", "ERROR: Failed to set ST1 to LOW");
 		return W_FAILURE;
 	}
@@ -84,8 +81,7 @@ static w_status_t adxrs649_self_test() {
 
 	vTaskDelay(pdMS_TO_TICKS(SELF_TEST_DELAY_MS));
 
-	status |=
-		gpio_write(GPIO_PIN_ADXRS649_ST2, GPIO_LEVEL_HIGH, 1); // TODO: create new GPIO pin for test
+	status |= gpio_write(GPIO_PIN_ADXRS649_ST2, GPIO_LEVEL_HIGH, 1);
 	vTaskDelay(pdMS_TO_TICKS(SELF_TEST_DELAY_MS));
 
 	status |= ads1219_get_millivolts(&g_ads_handle, &adc_voltage);
@@ -100,9 +96,7 @@ static w_status_t adxrs649_self_test() {
 
 	// make sure self-test 2 is turned off. Make sure the command is sent regardless of previous
 	// status
-	if (W_SUCCESS != gpio_write(GPIO_PIN_ADXRS649_ST2,
-								GPIO_LEVEL_LOW,
-								1)) { // TODO: create new GPIO pin for test
+	if (W_SUCCESS != gpio_write(GPIO_PIN_ADXRS649_ST2, GPIO_LEVEL_LOW, 1)) {
 		log_text(0, "ADXRS649", "ERROR: Failed to set ST2 to LOW");
 		return W_FAILURE;
 	}
@@ -121,9 +115,7 @@ static w_status_t adxrs649_self_test() {
 w_status_t adxrs649_init() {
 	// reset both gpio pins to low to start
 
-	if (W_SUCCESS != ads1219_init(&g_ads_handle,
-								  I2C_BUS_2,
-								  ADS1219_ADDR)) { // TODO: to be set once an I2C bus is determined
+	if (W_SUCCESS != ads1219_init(&g_ads_handle, I2C_BUS_2, ADS1219_ADDR)) {
 		log_text(0, "ADXRS649", "ERROR: Unable to initialize the ADC.");
 		return W_FAILURE;
 	}
@@ -187,8 +179,7 @@ w_status_t adxrs649_get_gyro_data(float64_t *p_data, uint32_t *p_raw_data) {
 	bool new_data = false;
 	gpio_level_t ndrdy; // NOT-DRDY
 
-	if (W_SUCCESS ==
-		gpio_read(GPIO_PIN_BLUE_LED, &ndrdy, 0)) { // TODO: to be changed to actual GPIO
+	if (W_SUCCESS == gpio_read(GPIO_PIN_ADS1219_INT, &ndrdy, 0)) {
 		// data ready is on the negative-edge
 		new_data = (GPIO_LEVEL_LOW == ndrdy) ? true : false;
 
