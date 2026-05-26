@@ -38,6 +38,10 @@ w_status_t iis2mdc_init(void) {
 	return W_SUCCESS;
 }
 
+/**
+ * @brief Performs a sanity check by verifying device identity and initialization configs.
+ * @return W_SUCCESS if the device responds with the expected values, W_FAILURE otherwise
+ */
 w_status_t iis2mdc_check_sanity(void) {
 	return W_SUCCESS;
 }

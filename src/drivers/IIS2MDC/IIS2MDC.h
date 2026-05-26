@@ -11,9 +11,9 @@
  * @note Sensitivity is 1.5 mgauss/LSB, multiply raw by 0.0015 to convert to gauss.
  */
 typedef struct {
-	float64_t x;
-	float64_t y;
-	float64_t z;
+	int16_t x;
+	int16_t y;
+	int16_t z;
 } iis2mdc_raw_data_t;
 
 /**
@@ -22,12 +22,6 @@ typedef struct {
  * @return Status of the operation
  */
 w_status_t iis2mdc_init(void);
-
-/**
- * @brief Performs a sanity check by verifying device identity and initialization configs.
- * @return W_SUCCESS if the device responds with the expected values, W_FAILURE otherwise
- */
-w_status_t iis2mdc_check_sanity(void);
 
 /**
  * @brief Retrieves magnetic field reading for all three axes.
