@@ -38,7 +38,7 @@ typedef struct {
  * @param hadc Pointer to the HAL ADC handle
  * @return Status of the initialization
  */
-w_status_t adc_init(ADC_HandleTypeDef *hadc);
+w_status_t adc_init(ADC_HandleTypeDef *hadc1, ADC_HandleTypeDef *hadc2, ADC_HandleTypeDef *hadc3);
 
 /**
  * @brief Convert the raw counts of a channel into voltage (empty stub for now)

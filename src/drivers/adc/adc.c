@@ -14,19 +14,13 @@ static uint32_t adc1_raw_counts[ADC1_NUM_CHANNELS];
 static uint32_t adc2_raw_counts[ADC2_NUM_CHANNELS];
 static uint32_t adc3_raw_counts[ADC3_NUM_CHANNELS];
 
-static ADC_HandleTypeDef *adc_handle;
-static SemaphoreHandle_t adc_conversion_semaphore = NULL;
-static SemaphoreHandle_t adc_mutex = NULL;
+static ADC_HandleTypeDef *adc1_handle;
+static ADC_HandleTypeDef *adc2_handle;
+static ADC_HandleTypeDef *adc3_handle;
+
 static adc_error_data_t adc_error_stats = {0};
 
-static void ADC1_ConvCpltCallback(ADC_HandleTypeDef *hadc) {
-	(void)hadc;
-	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-
-	/* We have not woken a task at the start of the ISR. */
-	xSemaphoreGiveFromISR(adc_conversion_semaphore, &xHigherPriorityTaskWoken);
-	portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
-}
+static SemaphoreHandle_t adc_mutex = NULL;
 
 static const uint32_t channel_to_dma_index[ADC_CHANNEL_COUNT - 1] = {
 	[VSENS_BAT1] = 0,
@@ -65,39 +59,27 @@ static const float conversion_table[ADC_CHANNEL_COUNT] = {
 	[ISENS_5V] = 0,
 	[PROCESSOR_BOARD_VOLTAGE] = 0};
 
-w_status_t adc_init(ADC_HandleTypeDef *hadc) {
-	if (NULL == hadc) {
+w_status_t adc_init(ADC_HandleTypeDef *hadc1, ADC_HandleTypeDef *hadc2, ADC_HandleTypeDef *hadc3) {
+	if (NULL == hadc1 || NULL == hadc2 || NULL == hadc3) {
 		return W_INVALID_PARAM;
 	}
-	adc_handle = hadc;
 
-	adc_conversion_semaphore = xSemaphoreCreateBinary();
-	adc_mutex = xSemaphoreCreateMutex();
+	adc1_handle = hadc1;
+	adc2_handle = hadc2;
+	adc3_handle = hadc3;
 
-	if ((NULL == adc_mutex) || (NULL == adc_conversion_semaphore)) {
-		if (adc_mutex) {
-			vSemaphoreDelete(adc_mutex);
-		}
-		if (adc_conversion_semaphore) {
-			vSemaphoreDelete(adc_conversion_semaphore);
-		}
-		log_text(1, "adc", "initfailmtx");
-		return W_FAILURE;
-	}
-
-	if (HAL_OK != HAL_ADC_RegisterCallback(
-					  adc_handle, HAL_ADC_CONVERSION_COMPLETE_CB_ID, ADC1_ConvCpltCallback)) {
-		vSemaphoreDelete(adc_mutex);
-		vSemaphoreDelete(adc_conversion_semaphore);
-		log_text(1, "adc", "initfailcb");
-		return W_FAILURE;
-	}
-
-	// Run ADC hardware auto-calibration
-	if (HAL_OK != HAL_ADCEx_Calibration_Start(adc_handle, ADC_CALIB_OFFSET, ADC_SINGLE_ENDED)) {
-		vSemaphoreDelete(adc_mutex);
-		vSemaphoreDelete(adc_conversion_semaphore);
+	if (HAL_OK != HAL_ADCEx_Calibration_Start(adc1_handle, ADC_CALIB_OFFSET, ADC_SINGLE_ENDED) ||
+		HAL_OK != HAL_ADCEx_Calibration_Start(adc2_handle, ADC_CALIB_OFFSET, ADC_SINGLE_ENDED) ||
+		HAL_OK != HAL_ADCEx_Calibration_Start(adc3_handle, ADC_CALIB_OFFSET, ADC_SINGLE_ENDED)) {
 		log_text(1, "adc", "initfailcal");
+		return W_FAILURE;
+	}
+
+	// Start continuous DMA
+	if (HAL_OK != HAL_ADC_Start_DMA(adc1_handle, adc1_raw_counts, ADC1_NUM_CHANNELS) ||
+		HAL_OK != HAL_ADC_Start_DMA(adc2_handle, adc2_raw_counts, ADC2_NUM_CHANNELS) ||
+		HAL_OK != HAL_ADC_Start_DMA(adc3_handle, adc3_raw_counts, ADC3_NUM_CHANNELS)) {
+		log_text(1, "adc", "initfaildma");
 		return W_FAILURE;
 	}
 
