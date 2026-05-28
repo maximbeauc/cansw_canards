@@ -1,19 +1,19 @@
-#include "drivers/imus/LSM6DSV32X.h"
+#include "main.h"
+#include "stm32h7xx_hal.h"
+#include <limits.h>
+#include <stdio.h>
+
 #include "application/logger/log.h"
+#include "drivers/imus/LSM6DSV32X.h"
 // #include "drivers/altimu-10/LPS_regmap.h"
 // #include "drivers/altimu-10/altimu-10.h"
 #include "drivers/gpio/gpio.h"
 #include "drivers/i2c/i2c.h"
 #include "drivers/imus/LSM6DSV32X_regmap.h"
 #include "drivers/timer/timer.h"
-#include <limits.h>
-#include <stdio.h>
 
 // device addresses and configuration
 #define LSM6DSV32X_ADDR 0x6A // addr sel pin LOW
-
-#define IMU_INT1_PORT GPIOD
-#define IMU_INT1_PIN GPIO_PIN_7
 
 // external definition of h2ic for the i2c bus 1;
 extern I2C_HandleTypeDef hi2c1;
@@ -26,13 +26,15 @@ static const float GYRO_RANGE = 4000.0; // dps
 static const float ACC_FS = ACC_RANGE / INT16_MAX; // g / LSB
 static const float GYRO_FS = GYRO_RANGE / INT16_MAX; // dps / LSB
 
-static imu_ctx_t *lsm6dsv32x_ctx;
+static imu_ctx_t lsm6dsv32x_ctx = {0};
+
+static const uint8_t CTX_BUFFER_SIZE = sizeof(lsm6dsv32x_ctx.dual_buffer[IMU_READ_BUFFER]);
 
 // TODO: update to use the proper i2c bus
 
 // Helper function for writing config (passing value as literal)
 static w_status_t write_1_byte(uint8_t addr, uint8_t reg, uint8_t data) {
-	return i2c_write_reg(I2C_BUS_4, addr, reg, &data, 1);
+	return i2c_write_reg(I2C_BUS_1, addr, reg, &data, 1);
 }
 
 /**
@@ -47,7 +49,7 @@ w_status_t lsm6dsv32x_check_sanity() {
 	uint8_t expected_lsm6dsv32x = 0x70;
 	uint8_t who_am_i = 0;
 
-	i2c_status |= i2c_read_reg(I2C_BUS_4, LSM6DSV32X_ADDR, LSM6DSV32X_WHO_AM_I, &who_am_i, 1);
+	i2c_status |= i2c_read_reg(I2C_BUS_1, LSM6DSV32X_ADDR, LSM6DSV32X_WHO_AM_I, &who_am_i, 1);
 	if (expected_lsm6dsv32x != who_am_i) {
 		device_status |= W_FAILURE;
 	}
@@ -65,9 +67,9 @@ w_status_t lsm6dsv32x_check_sanity() {
  * @return Status of the operation
  */
 w_status_t lsm6dsv32x_init() {
-	lsm6dsv32x_ctx->bus_status = IMU_BUS_FREE;
-	lsm6dsv32x_ctx->hi2c = &hi2c1;
-	lsm6dsv32x_ctx->stale_data = IMU_DATA_STALE;
+	lsm6dsv32x_ctx.bus_status = IMU_BUS_FREE;
+	lsm6dsv32x_ctx.hi2c = &hi2c1;
+	lsm6dsv32x_ctx.stale_data = IMU_DATA_STALE;
 
 	w_status_t status = W_SUCCESS;
 
@@ -122,7 +124,7 @@ w_status_t lsm6dsv32x_init() {
 	// register the I2C callback for the end of the DMA read to call the dma complete handker
 	// function
 	HAL_I2C_RegisterCallback(
-		lsm6dsv32x_ctx->hi2c, HAL_I2C_MEM_RX_COMPLETE_CB_ID, lsm6dsv32x_dma_complete_handle);
+		lsm6dsv32x_ctx.hi2c, HAL_I2C_MASTER_RX_COMPLETE_CB_ID, lsm6dsv32x_dma_complete_handle);
 
 	status |= lsm6dsv32x_check_sanity();
 
@@ -138,18 +140,18 @@ w_status_t lsm6dsv32x_int1_isr_handler() {
 
 	// set the bus to occupied meanining that data is
 	// actively being streamed via DMA into the Buffer from the IMU
-	lsm6dsv32x_ctx->bus_status = IMU_BUS_BUSY;
+	lsm6dsv32x_ctx.bus_status = IMU_BUS_BUSY;
 
 	// store the timestamp when the data is recieved
-	status |= timer_get_ms(&lsm6dsv32x_ctx->timestamp[IMU_WRITE_BUFFER]);
+	status |= timer_get_ms(&lsm6dsv32x_ctx.timestamp[IMU_WRITE_BUFFER]);
 
 	// begin dma read to the main buffer
-	status |= HAL_I2C_Mem_Read_DMA(lsm6dsv32x_ctx->hi2c,
+	status |= HAL_I2C_Mem_Read_DMA(lsm6dsv32x_ctx.hi2c,
 								   LSM6DSV32X_ADDR,
 								   FIFO_READ_BEGIN,
 								   I2C_MEMADD_SIZE_8BIT,
-								   lsm6dsv32x_ctx->dual_buffer[IMU_WRITE_BUFFER],
-								   12);
+								   lsm6dsv32x_ctx.dual_buffer[IMU_WRITE_BUFFER],
+								   CTX_BUFFER_SIZE);
 
 	return status;
 }
@@ -158,7 +160,7 @@ w_status_t lsm6dsv32x_int1_isr_handler() {
  * @brief Interupt handler for the int1 pin
  */
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
-	if ((GPIO_Pin == IMU_INT1_PIN) && (IMU_BUS_FREE == lsm6dsv32x_ctx->bus_status)) {
+	if ((GPIO_Pin == IMU_INT1_Pin) && (IMU_BUS_FREE == lsm6dsv32x_ctx.bus_status)) {
 		lsm6dsv32x_int1_isr_handler();
 	}
 }
@@ -167,17 +169,17 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
  * @brief handler for after the DMA is completed
  */
 void lsm6dsv32x_dma_complete_handle(I2C_HandleTypeDef *hi2c) {
-	if (hi2c != lsm6dsv32x_ctx->hi2c) {
+	if (hi2c != lsm6dsv32x_ctx.hi2c) {
 		return;
 	}
 
-	lsm6dsv32x_ctx->bus_status = IMU_BUS_FREE;
+	lsm6dsv32x_ctx.bus_status = IMU_BUS_FREE;
 
-	memcpy(lsm6dsv32x_ctx->dual_buffer[IMU_READ_BUFFER],
-		   lsm6dsv32x_ctx->dual_buffer[IMU_WRITE_BUFFER],
-		   12);
+	memcpy(lsm6dsv32x_ctx.dual_buffer[IMU_READ_BUFFER],
+		   lsm6dsv32x_ctx.dual_buffer[IMU_WRITE_BUFFER],
+		   CTX_BUFFER_SIZE);
 
-	lsm6dsv32x_ctx->stale_data = IMU_DATA_READY;
+	lsm6dsv32x_ctx.stale_data = IMU_DATA_READY;
 }
 
 // TODO: make below function into a seperate module, interupts or gpio or dma
@@ -196,15 +198,15 @@ w_status_t lsm6dsv32x_get_gyro_acc_data(vector3d_t *acc_data, vector3d_t *gyro_d
 	w_status_t status = W_SUCCESS;
 	uint8_t raw_bytes[12]; // copy the bytes so they are safe while doing calculations
 
-	if (IMU_DATA_READY == lsm6dsv32x_ctx->stale_data) {
+	if (IMU_DATA_READY == lsm6dsv32x_ctx.stale_data) {
 		taskENTER_CRITICAL();
 
 		// enter a critical section while copying the data
-		memcpy(raw_bytes, lsm6dsv32x_ctx->dual_buffer[IMU_READ_BUFFER], 12);
+		memcpy(raw_bytes, lsm6dsv32x_ctx.dual_buffer[IMU_READ_BUFFER], CTX_BUFFER_SIZE);
 		//*timestamp = lsm6dsv32x_ctx.timestamp[IMU_READ_BUFFER];
 
 		// set current data to stale once the buffer is read and coppied into the function
-		lsm6dsv32x_ctx->stale_data = IMU_DATA_STALE;
+		lsm6dsv32x_ctx.stale_data = IMU_DATA_STALE;
 
 		taskEXIT_CRITICAL();
 
