@@ -29,7 +29,7 @@ static const uint32_t channel_to_dma_index[ADC_CHANNEL_COUNT] = {[VSENS_BAT1] = 
 																 [VSENS_USB] = 1,
 																 [ISENS_3V3] = 0,
 																 [ISENS_5V] = 1};
-
+//bad name
 static const uint32_t channel_to_adc[ADC_CHANNEL_COUNT] = {[VSENS_BAT1] = 1,
 														   [VSENS_BAT2] = 1,
 														   [VSENS_RKT] = 1,
@@ -41,14 +41,14 @@ static const uint32_t channel_to_adc[ADC_CHANNEL_COUNT] = {[VSENS_BAT1] = 1,
 														   [ISENS_5V] = 3};
 
 static const float conversion_table[ADC_CHANNEL_COUNT] = {
-    // Voltage Multipliers (V)
+    // Voltage Multipliers (V) ask jason h about values
     [VSENS_BAT1] = 11.0f,      // 100k / 10k divider
     [VSENS_BAT2] = 11.0f,      // 100k / 10k divider
     [VSENS_RKT]  = 6.2356f,    // 100k / 19.1k divider
     [VSENS_CHG]  = 6.2356f,    // 100k / 19.1k divider
     [VSENS_USB]  = 2.0f,       // 100k / 100k divider
 
-	// Current multipliers (mA)
+	// Current multipliers (mA) 
     [ISENS_BAT1] = 11111.1f,   // LM74910-Q1 IMON (1mR shunt, 100R R_SET, 10k R_MON)
     [ISENS_BAT2] = 11111.1f,   // LM74910-Q1 IMON (1mR shunt, 100R R_SET, 10k R_MON)
     [ISENS_3V3]  = 10000.0f,      // INA180A3 (1mR shunt, 100 V/V gain)
@@ -96,7 +96,7 @@ static w_status_t adc_get_raw_counts(adc_channel_t channel, uint32_t *output) {
 
 	uint32_t index = channel_to_dma_index[channel];
 	uint32_t adc = channel_to_adc[channel];
-
+	//don't use magic numbers like 1 and 2
 	if (1 == adc) {
 		*output = adc1_raw_counts[index];
 	} else if (2 == adc) {
