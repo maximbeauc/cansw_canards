@@ -29,6 +29,14 @@ static const uint32_t IIS2MDC_CFG_A_SOFT_RESET = (1 << 5);
 // Enables self-testing
 static const uint8_t IIS2MDC_CFG_C_SELF_TEST = (1 << 1);
 
+// Self-test parameters (AN5080)
+static const float64_t IIS2MDC_ST_MIN_GAUSS = 0.015;
+static const float64_t IIS2MDC_ST_MAX_GAUSS = 0.500;
+static const uint32_t IIS2MDC_ST_SAMPLES = 50;
+static const uint32_t IIS2MDC_ST_POWERUP_MS = 20;
+static const uint32_t IIS2MDC_ST_SETTLE_MS = 60;
+static const uint32_t IIS2MDC_ST_TIMEOUT_MS = 20;
+
 /* Init configuration:
  CFG_REG_A = 0x8C  COMP_TEMP_EN=1, LP=0(high-res), ODR=11 (100 Hz), MD=00 (continuous)
  CFG_REG_B = 0x02  OFF_CANC=1 (continuous offset cancellation)
@@ -80,6 +88,10 @@ static void a_convert(const uint8_t *buf, iis2mdc_raw_data_t *raw, vector3d_t *d
  * @return W_SUCCESS if the device responds with the expected values, W_FAILURE otherwise
  */
 static w_status_t iis2mdc_check_sanity(void) {
+	if (W_SUCCESS != iis2mdc_self_test()) {
+		log_text(1, "iis2mdc", "ERROR: self-test failed");
+		return W_FAILURE;
+	}
 	return W_SUCCESS;
 }
 
@@ -126,5 +138,124 @@ w_status_t iis2mdc_get_data(vector3d_t *data, iis2mdc_raw_data_t *raw_data, floa
 
 	a_convert(buf, raw_data, data);
 	*timestamp_ms = timer_get_ms();
+	return W_SUCCESS;
+}
+
+/**
+ * @brief Polls status register until a new sample is ready (ZYXDA), waits 1ms between polls
+ * @note Bounded by IIS2MDC_ST_TIMEOUT_MS (20ms, 2 sample period at 100hz)
+ */
+static w_status_t st_wait_data_ready(void) {
+	uint8_t status;
+
+	for (uint32_t i = 0; i < IIS2MDC_ST_TIMEOUT_MS; i++) {
+		if (W_SUCCESS != a_read(IIS2MDC_REG_STATUS, &status, 1)) {
+			return W_FAILURE;
+		}
+		if (status & IIS2MDC_STATUS_ZYXDA) {
+			return W_SUCCESS;
+		}
+		vTaskDelay(pdMS_TO_TICKS(1));
+	}
+	return W_FAILURE; // no new sample within the timeout
+}
+
+/**
+ * @brief Waits for a fresh sample, then reads and converts the output registers to gauss.
+ */
+static w_status_t st_read_sample(vector3d_t *out) {
+	uint8_t buf[6];
+	iis2mdc_raw_data_t raw;
+
+	if (W_SUCCESS != st_wait_data_ready()) {
+		return W_FAILURE;
+	}
+	if (W_SUCCESS != a_read(IIS2MDC_REG_OUTX_L, buf, 6)) {
+		return W_FAILURE;
+	}
+	a_convert(buf, &raw, out);
+	return W_SUCCESS;
+}
+
+/**
+ * @brief Discards the first sample, then averages 50 data samples
+ */
+static w_status_t st_collect_average(vector3d_t *avg) {
+	vector3d_t sample;
+	float64_t sum_x = 0.0, sum_y = 0.0, sum_z = 0.0;
+
+	// discard the first sample after a mode change
+	if (W_SUCCESS != st_read_sample(&sample)) {
+		return W_FAILURE;
+	}
+
+	for (uint32_t i = 0; i < IIS2MDC_ST_SAMPLES; i++) {
+		if (W_SUCCESS != st_read_sample(&sample)) {
+			return W_FAILURE;
+		}
+		sum_x += sample.x;
+		sum_y += sample.y;
+		sum_z += sample.z;
+	}
+
+	avg->x = sum_x / (float64_t)IIS2MDC_ST_SAMPLES;
+	avg->y = sum_y / (float64_t)IIS2MDC_ST_SAMPLES;
+	avg->z = sum_z / (float64_t)IIS2MDC_ST_SAMPLES;
+	return W_SUCCESS;
+}
+
+
+/**
+ * @brief Runs the on-chip self-test (ST AN5080 document for procedure)
+ * @note Waits for turn-on, averages the field with self-test off, then on, and checks the
+ *       delta against the datasheet range (15-500 mgauss) Restores normal config before returning.
+ */
+static w_status_t iis2mdc_self_test(void) {
+	vector3d_t avg_off, avg_on;
+
+	// wait for stable output after power-up before sampling (specified in AN 5080)
+	vTaskDelay(pdMS_TO_TICKS(IIS2MDC_ST_POWERUP_MS));
+
+	// discard the first sample, then average with self-test disabled
+	if (W_SUCCESS != st_collect_average(&avg_off)) {
+		log_text(1, "iis2mdc", "ERROR: self-test baseline read failed");
+		return W_FAILURE;
+	}
+
+	// enable self-test and wait 60ms for field to settle (specified in AN 5080)
+	if (W_SUCCESS != a_write(IIS2MDC_REG_CFG_C, IIS2MDC_INIT_CFG_C | IIS2MDC_CFG_C_SELF_TEST)) {
+		log_text(1, "iis2mdc", "ERROR: failed to enable self-test");
+		return W_FAILURE;
+	}
+	vTaskDelay(pdMS_TO_TICKS(IIS2MDC_ST_SETTLE_MS));
+
+	w_status_t read_status = st_collect_average(&avg_on);
+
+	// restore normal config regardless of the read outcome
+	if (W_SUCCESS != a_write(IIS2MDC_REG_CFG_C, IIS2MDC_INIT_CFG_C)) {
+		log_text(1, "iis2mdc", "ERROR: failed to restore configs after self-test");
+		return W_FAILURE;
+	}
+	if (W_SUCCESS != read_status) {
+		log_text(1, "iis2mdc", "ERROR: self-test read failed");
+		return W_FAILURE;
+	}
+
+	// per-axis delta
+	float64_t dx = fabs(avg_on.x - avg_off.x);
+	float64_t dy = fabs(avg_on.y - avg_off.y);
+	float64_t dz = fabs(avg_on.z - avg_off.z);
+
+	if (dx < IIS2MDC_ST_MIN_GAUSS || dx > IIS2MDC_ST_MAX_GAUSS || dy < IIS2MDC_ST_MIN_GAUSS ||
+		dy > IIS2MDC_ST_MAX_GAUSS || dz < IIS2MDC_ST_MIN_GAUSS || dz > IIS2MDC_ST_MAX_GAUSS) {
+		log_text(1,
+				 "iis2mdc",
+				 "ERROR: self-test out of range: x=%f y=%f z=%f",
+				 dx,
+				 dy,
+				 dz);
+		return W_FAILURE;
+	}
+
 	return W_SUCCESS;
 }

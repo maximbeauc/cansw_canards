@@ -18,8 +18,7 @@ typedef struct {
 
 /**
  * @brief Initializes the IIS2MDC magnetometer.
- * @note Performs a soft reset, verifies WHO_AM_I, applies the configs, and runs a self-test sanity
- *       check.
+ * @note Performs a soft reset and applies the configuration registers, initializing the magnetometer.
  * @return Status of the operation
  */
 w_status_t iis2mdc_init(void);
