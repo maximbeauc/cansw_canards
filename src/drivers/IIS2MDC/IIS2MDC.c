@@ -6,7 +6,8 @@ static const i2c_bus_t IIS2MDC_BUS = I2C_BUS_4;
 static const uint8_t IIS2MDC_I2C_ADDR = 0x1E;
 
 // Register addresses
-static const uint32_t IIS2MDC_REG_OFFSET_X_L = 0x45; // How are we planning to calibrate sensors irl?
+static const uint32_t IIS2MDC_REG_OFFSET_X_L =
+	0x45; // How are we planning to calibrate sensors irl?
 static const uint32_t IIS2MDC_REG_WHO_AM_I = 0x4F;
 static const uint32_t IIS2MDC_REG_CFG_A = 0x60;
 static const uint32_t IIS2MDC_REG_CFG_B = 0x61;
@@ -14,7 +15,8 @@ static const uint32_t IIS2MDC_REG_CFG_C = 0x62;
 static const uint32_t IIS2MDC_REG_STATUS = 0x67;
 static const uint32_t IIS2MDC_REG_OUTX_L = 0x68;
 
-// SUB MSB that enables auto-increment for multi-byte reads. Since all registers are less than 0x80 we can freely use this bit
+// SUB MSB that enables auto-increment for multi-byte reads. Since all registers are less than 0x80
+// we can freely use this bit
 static const uint32_t IIS2MDC_SUB_AUTO_INC = 0x80;
 
 // Expected WHO_AM_I return value
@@ -123,9 +125,10 @@ w_status_t iis2mdc_init(void) {
 	return W_SUCCESS;
 }
 
-w_status_t iis2mdc_get_data(vector3d_t *data, iis2mdc_raw_data_t *raw_data, float64_t *timestamp_ms) {
+w_status_t iis2mdc_get_data(vector3d_t *data, iis2mdc_raw_data_t *raw_data,
+							float64_t *timestamp_ms) {
 	uint8_t buf[6] = 0;
-	
+
 	if (NULL == data || NULL == raw_data || NULL == timestamp_ms) {
 		log_text(1, "iis2mdc", "ERROR: NULL pointer cannot be used as input to get_data function");
 		return W_FAILURE;
@@ -204,7 +207,6 @@ static w_status_t st_collect_average(vector3d_t *avg) {
 	return W_SUCCESS;
 }
 
-
 /**
  * @brief Runs the on-chip self-test (ST AN5080 document for procedure)
  * @note Waits for turn-on, averages the field with self-test off, then on, and checks the
@@ -248,12 +250,7 @@ static w_status_t iis2mdc_self_test(void) {
 
 	if (dx < IIS2MDC_ST_MIN_GAUSS || dx > IIS2MDC_ST_MAX_GAUSS || dy < IIS2MDC_ST_MIN_GAUSS ||
 		dy > IIS2MDC_ST_MAX_GAUSS || dz < IIS2MDC_ST_MIN_GAUSS || dz > IIS2MDC_ST_MAX_GAUSS) {
-		log_text(1,
-				 "iis2mdc",
-				 "ERROR: self-test out of range: x=%f y=%f z=%f",
-				 dx,
-				 dy,
-				 dz);
+		log_text(1, "iis2mdc", "ERROR: self-test out of range: x=%f y=%f z=%f", dx, dy, dz);
 		return W_FAILURE;
 	}
 
