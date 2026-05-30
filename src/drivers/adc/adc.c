@@ -51,8 +51,8 @@ static const float conversion_table[ADC_CHANNEL_COUNT] = {
 	// Current multipliers (mA)
 	[ISENS_BAT1] = 11111.1f,
 	[ISENS_BAT2] = 11111.1f,
-	[ISENS_3V3] = 10000.0f,
-	[ISENS_5V] = 10000.0f};
+	[ISENS_3V3] = 2000.0f,
+	[ISENS_5V] = 2000.0f};
 
 w_status_t adc_init(ADC_HandleTypeDef *hadc1, ADC_HandleTypeDef *hadc2, ADC_HandleTypeDef *hadc3) {
 	if (NULL == hadc1 || NULL == hadc2 || NULL == hadc3) {
