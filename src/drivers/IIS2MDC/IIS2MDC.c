@@ -94,7 +94,7 @@ static void iis2mdc_convert_sample(const uint8_t *buf, iis2mdc_raw_data_t *raw, 
  * @brief Polls status register until a new sample is ready (ZYXDA), waits 1ms between polls
  * @note Bounded by IIS2MDC_ST_TIMEOUT_MS (20ms, 2 sample period at 100hz)
  */
-static w_status_t st_wait_datiis2mdc_read_regy(void) {
+static w_status_t st_wait_data_ready(void) {
 	uint8_t status;
 
 	for (uint32_t i = 0; i < IIS2MDC_ST_TIMEOUT_MS; i++) {
