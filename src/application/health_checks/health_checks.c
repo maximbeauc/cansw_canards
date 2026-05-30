@@ -21,9 +21,6 @@
 #include "task.h"
 
 #define TASK_DELAY_MS 3000
-#define ADC_VREF 3.3f
-#define R_SENSE 0.033f
-#define INA180A3_GAIN 100.0f
 #define MAX_WATCHDOG_TASKS 10
 
 // struct for watchdog
@@ -128,6 +125,9 @@ uint32_t check_watchdog_tasks(void) {
 			// do nothing if any one is true
 		} else {
 			// report watchdog timeout
+			can_msg_t msg = {0};
+			msg.data[0] = pcTaskGetName(watchdog_tasks[i].task_handle);
+			build_debug_raw_msg(PRIO_HIGH, xTaskGetTickCount(), msg.data, &msg);
 			log_text(10, "health_checks", "task timeout: %d", i);
 			status_bitfield |= 1 << E_WATCHDOG_TIMEOUT_OFFSET;
 		}
@@ -232,7 +232,7 @@ void proc_handle_fatal_error(const char *errorMsg) {
 		// Use canlib's helper function to build the debug message
 		// Set priority to high and timestamp to 0 (since we can't reliably get timestamp in error
 		// state)
-		build_debug_raw_msg(PRIO_MEDIUM, 0, data, &msg);
+		build_debug_raw_msg(PRIO_HIGH, 0, data, &msg);
 		if (can_initialized) {
 			stm32h7_can_send(&msg);
 		}
@@ -263,7 +263,12 @@ w_status_t health_check_exec() {
 
 	// send status CAN msg
 	can_msg_t msg = {0};
-	build_general_board_status_msg(PRIO_LOW, xTaskGetTickCount(), status_bitfield, &msg);
+
+	if (0 == status_bitfield) {
+		build_general_board_status_msg(PRIO_LOW, xTaskGetTickCount(), status_bitfield, &msg);
+	} else {
+		build_general_board_status_msg(PRIO_HIGH, xTaskGetTickCount(), status_bitfield, &msg);
+	}
 
 	if (can_handler_transmit(&msg) != W_SUCCESS) {
 		log_text(0, "health_checks", "CAN send failure for status msg");
