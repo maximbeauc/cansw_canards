@@ -123,7 +123,7 @@ static w_status_t st_wait_data_ready(void) {
 			return W_FAILURE;
 		}
 	}
-	return W_FAILURE; // no new sample within the timeout
+	return W_IO_TIMEOUT; // no new sample within the timeout
 }
 
 /**
@@ -247,7 +247,7 @@ static w_status_t iis2mdc_sanity_check(void) {
 }
 
 w_status_t iis2mdc_init(void) {
-	// wait for stable output after power-up before any access (specified in AN 5080)
+	// wait for stable output after power-up before any access
 	vTaskDelay(pdMS_TO_TICKS(IIS2MDC_ST_POWERUP_MS));
 
 	// soft reset clears config registers
