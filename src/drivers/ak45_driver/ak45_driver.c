@@ -113,7 +113,7 @@ static void ak45_stop_can() {
 	}
 }
 
-w_status_t ak45_send_position_cmd(float angle_deg) {
+w_status_t ak45_send_position_cmd(float32_t angle_deg) {
 	uint32_t ext_id = ((uint32_t)CAN_PACKET_SET_POS << 8) | AK45_DRIVER_ID;
 
 	int32_t pos_raw = (int32_t)(angle_deg * AK45_POS_CMD_SCALE);

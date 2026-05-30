@@ -22,9 +22,9 @@ typedef enum {
  * @brief Decoded feedback from the servo
  */
 typedef struct {
-	float position_deg;
-	float speed_erpm;
-	float current_a;
+	float32_t position_deg;
+	float32_t speed_erpm;
+	float32_t current_a;
 	int8_t temperature_c;
 	ak45_fault_code_t fault_code;
 	uint32_t timestamp_ms; // Time of last received feedback
@@ -47,7 +47,7 @@ w_status_t ak45_driver_init(FDCAN_HandleTypeDef *hfdcan, const uint32_t can_init
  * @param[in] angle_deg  Target position in degrees
  * @return W_SUCCESS on success, W_FAILURE on error
  */
-w_status_t ak45_send_position_cmd(float angle_deg);
+w_status_t ak45_send_position_cmd(float32_t angle_deg);
 
 /**
  * @brief Send a disable command to the servo
