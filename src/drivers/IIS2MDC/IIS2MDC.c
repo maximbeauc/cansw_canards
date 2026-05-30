@@ -116,7 +116,7 @@ static w_status_t st_read_sample(vector3d_t *out) {
 	uint8_t buf[6];
 	iis2mdc_raw_data_t raw;
 
-	if (W_SUCCESS != st_wait_datiis2mdc_read_regy()) {
+	if (W_SUCCESS != st_wait_data_ready()) {
 		return W_FAILURE;
 	}
 	if (W_SUCCESS != iis2mdc_read_reg(IIS2MDC_REG_OUTX_L, buf, 6)) {
