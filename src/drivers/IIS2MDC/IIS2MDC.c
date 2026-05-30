@@ -43,6 +43,7 @@ static const uint32_t IIS2MDC_ST_SAMPLES = 50;
 static const uint32_t IIS2MDC_ST_POWERUP_MS = 20;
 static const uint32_t IIS2MDC_ST_SETTLE_MS = 60;
 static const uint32_t IIS2MDC_ST_TIMEOUT_MS = 20;
+static const uint32_t IIS2MDC_ST_POLLING_PERIOD_MS = 1;
 
 /* Init configuration:
  CFG_REG_A = 0x8C  COMP_TEMP_EN=1, LP=0(high-res), ODR=11 (100 Hz), MD=00 (continuous)
@@ -95,16 +96,32 @@ static void iis2mdc_convert_sample(const uint8_t *buf, iis2mdc_raw_data_t *raw, 
  * @note Bounded by IIS2MDC_ST_TIMEOUT_MS (20ms, 2 sample period at 100hz)
  */
 static w_status_t st_wait_data_ready(void) {
-	uint8_t status;
+	uint8_t status = 0;
+	uint32_t start_ms = 0;
 
-	for (uint32_t i = 0; i < IIS2MDC_ST_TIMEOUT_MS; i++) {
+	if (W_SUCCESS != timer_get_ms(&start_ms)) {
+		return W_FAILURE;
+	}
+
+	uint32_t now_ms = start_ms;
+
+	while (now_ms - start_ms < IIS2MDC_ST_TIMEOUT_MS) {
 		if (W_SUCCESS != iis2mdc_read_reg(IIS2MDC_REG_STATUS, &status, 1)) {
 			return W_FAILURE;
 		}
-		if (status & IIS2MDC_STATUS_ZYXDA) {
+		// ZYXDA is bit 3 of STATUS_REG, it is 1 when a fresh sample is available.
+		// ORing status with IIS2MDC_STATUS_ZYXDA (1 << 3) clears every other bit, so the
+		// result is the value of just that bit's position. The
+		// negation makes it a 1 for data ready or 0 for not ready.
+		uint8_t data_ready = !(status & IIS2MDC_STATUS_ZYXDA);
+		if (data_ready) {
 			return W_SUCCESS;
 		}
-		vTaskDelay(pdMS_TO_TICKS(1));
+		vTaskDelay(pdMS_TO_TICKS(IIS2MDC_ST_POLLING_PERIOD_MS));
+
+		if (W_SUCCESS != timer_get_ms(&now_ms)) {
+			return W_FAILURE;
+		}
 	}
 	return W_FAILURE; // no new sample within the timeout
 }
@@ -195,7 +212,7 @@ static w_status_t iis2mdc_self_test(void) {
 	float64_t dy = fabs(avg_on.y - avg_off.y);
 	float64_t dz = fabs(avg_on.z - avg_off.z);
 
-	if (dx < IIS2MDC_ST_MIN_GAUSS || dx > IIS2MDC_ST_MAX_GAUSS || dy < IIS2MDC_ST_MIN_GAUSS ||
+	if ((dx < IIS2MDC_ST_MIN_GAUSS) || (dx > IIS2MDC_ST_MAX_GAUSS) || (dy < IIS2MDC_ST_MIN_GAUSS) ||
 		dy > IIS2MDC_ST_MAX_GAUSS || dz < IIS2MDC_ST_MIN_GAUSS || dz > IIS2MDC_ST_MAX_GAUSS) {
 		log_text(1, "iis2mdc", "ERROR: self-test out of range: x=%f y=%f z=%f", dx, dy, dz);
 		return W_FAILURE;
@@ -239,7 +256,7 @@ w_status_t iis2mdc_init(void) {
 		return W_FAILURE;
 	}
 
-	if (W_SUCCESS != iis2mdc_write_reg(IIS2MDC_REG_CFG_A, IIS2MDC_INIT_CFG_A) ||
+	if (W_SUCCESS != (iis2mdc_write_reg(IIS2MDC_REG_CFG_A, IIS2MDC_INIT_CFG_A)) ||
 		W_SUCCESS != iis2mdc_write_reg(IIS2MDC_REG_CFG_B, IIS2MDC_INIT_CFG_B) ||
 		W_SUCCESS != iis2mdc_write_reg(IIS2MDC_REG_CFG_C, IIS2MDC_INIT_CFG_C)) {
 		log_text(1, "iis2mdc", "ERROR: failed to write configuration registers");
@@ -258,7 +275,7 @@ w_status_t iis2mdc_get_data(vector3d_t *data, iis2mdc_raw_data_t *raw_data,
 							uint32_t *timestamp_ms) {
 	uint8_t buf[6] = {0};
 
-	if (NULL == data || NULL == raw_data || NULL == timestamp_ms) {
+	if ((NULL == data) || (NULL == raw_data) || (NULL == timestamp_ms)) {
 		log_text(1, "iis2mdc", "ERROR: NULL pointer cannot be used as input to get_data function");
 		return W_FAILURE;
 	}
@@ -270,11 +287,9 @@ w_status_t iis2mdc_get_data(vector3d_t *data, iis2mdc_raw_data_t *raw_data,
 
 	iis2mdc_convert_sample(buf, raw_data, data);
 
-	uint32_t now = 0;
-	if (W_SUCCESS != timer_get_ms(&now)) {
+	if (W_SUCCESS != timer_get_ms(&timestamp_ms)) {
 		log_text(1, "iis2mdc", "ERROR: failed to get timestamp");
 		return W_FAILURE;
 	}
-	*timestamp_ms = (uint32_t)now;
 	return W_SUCCESS;
 }
