@@ -147,11 +147,11 @@ w_status_t adc_get_converted_val(adc_channel_t channel, float *output) {
 
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc) {
 	if (hadc == adc1_handle) {
-		memcpy(adc1_raw_counts, adc1_dma_counts, ADC1_NUM_CHANNELS);
+		memcpy(adc1_raw_counts, adc1_dma_counts, sizeof(adc1_raw_counts));
 	} else if (hadc == adc2_handle) {
-		memcpy(adc2_raw_counts, adc2_dma_counts, ADC2_NUM_CHANNELS);
+		memcpy(adc2_raw_counts, adc2_dma_counts, sizeof(adc2_raw_counts));
 	} else if (hadc == adc3_handle) {
-		memcpy(adc3_raw_counts, adc3_dma_counts, ADC3_NUM_CHANNELS);
+		memcpy(adc3_raw_counts, adc3_dma_counts, sizeof(adc3_raw_counts));
 	} else {
 		return;
 	}
@@ -163,7 +163,7 @@ uint32_t adc_get_status(void) {
 	// Log error statistics
 	log_text(0,
 			 "adc",
-			 "%s conv_timeouts=%lu, mutex_timeouts=%lu, invalid_channels=%lu, "
+			 "%s conv_timeouts=%lu, invalid_channels=%lu, "
 			 "overflows=%lu",
 			 adc_error_stats.is_init ? "true" : "false",
 			 adc_error_stats.conversion_timeouts,
