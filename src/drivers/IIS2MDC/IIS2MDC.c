@@ -31,9 +31,9 @@ static const uint32_t IIS2MDC_WHO_AM_I_VAL = 0x40;
 
 // Checks if new data is available
 static const uint32_t IIS2MDC_STATUS_ZYXDA = (1 << 3);
-
-// Resets config registers
-static const uint32_t IIS2MDC_CFG_A_SOFT_RESET = (1 << 5);
+00
+	// Resets config registers
+	static const uint32_t IIS2MDC_CFG_A_SOFT_RESET = (1 << 5);
 
 // Enables self-testing
 static const uint8_t IIS2MDC_CFG_C_SELF_TEST = (1 << 1);
@@ -115,8 +115,7 @@ static w_status_t st_wait_data_ready(void) {
 		// ANDing status with IIS2MDC_STATUS_ZYXDA (1 << 3) masks off every other bit, leaving
 		// only bit 3. Comparing that masked value against IIS2MDC_STATUS_ZYXDA is true only when
 		// bit 3 is set, so data_ready is 1 when a sample is ready and 0 when it is not.
-		uint8_t data_ready = ((status & IIS2MDC_STATUS_ZYXDA) == IIS2MDC_STATUS_ZYXDA);
-		if (data_ready) {
+		if ((status & IIS2MDC_STATUS_ZYXDA) == IIS2MDC_STATUS_ZYXDA) {
 			return W_SUCCESS;
 		}
 		vTaskDelay(pdMS_TO_TICKS(IIS2MDC_ST_POLLING_PERIOD_MS));
