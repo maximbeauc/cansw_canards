@@ -6,6 +6,8 @@
 #include "drivers/i2c/i2c.h"
 #include "drivers/timer/timer.h"
 
+#include <math.h>
+
 // I2C bus and slave address
 static const i2c_bus_t IIS2MDC_BUS = I2C_BUS_4;
 static const uint8_t IIS2MDC_I2C_ADDR = 0x1E;
@@ -105,15 +107,15 @@ static w_status_t st_wait_data_ready(void) {
 
 	uint32_t now_ms = start_ms;
 
-	while (now_ms - start_ms < IIS2MDC_ST_TIMEOUT_MS) {
+	while ((now_ms - start_ms) < IIS2MDC_ST_TIMEOUT_MS) {
 		if (W_SUCCESS != iis2mdc_read_reg(IIS2MDC_REG_STATUS, &status, 1)) {
 			return W_FAILURE;
 		}
 		// ZYXDA is bit 3 of STATUS_REG, it is 1 when a fresh sample is available.
-		// ORing status with IIS2MDC_STATUS_ZYXDA (1 << 3) clears every other bit, so the
-		// result is the value of just that bit's position. The
-		// negation makes it a 1 for data ready or 0 for not ready.
-		uint8_t data_ready = !(status & IIS2MDC_STATUS_ZYXDA);
+		// ANDing status with IIS2MDC_STATUS_ZYXDA (1 << 3) masks off every other bit, leaving
+		// only bit 3. Comparing that masked value against IIS2MDC_STATUS_ZYXDA is true only when
+		// bit 3 is set, so data_ready is 1 when a sample is ready and 0 when it is not.
+		uint8_t data_ready = ((status & IIS2MDC_STATUS_ZYXDA) == IIS2MDC_STATUS_ZYXDA);
 		if (data_ready) {
 			return W_SUCCESS;
 		}
@@ -247,7 +249,7 @@ static w_status_t iis2mdc_sanity_check(void) {
 }
 
 w_status_t iis2mdc_init(void) {
-	// wait for stable output after power-up before any access
+	// wait for stable output after power-up before any access to registers
 	vTaskDelay(pdMS_TO_TICKS(IIS2MDC_ST_POWERUP_MS));
 
 	// soft reset clears config registers
@@ -255,6 +257,9 @@ w_status_t iis2mdc_init(void) {
 		log_text(1, "iis2mdc", "ERROR: soft reset failed");
 		return W_FAILURE;
 	}
+
+	// wait before writing to registers again after soft reset
+	vTaskDelay(pdMS_TO_TICKS(IIS2MDC_ST_POWERUP_MS));
 
 	if ((W_SUCCESS != iis2mdc_write_reg(IIS2MDC_REG_CFG_A, IIS2MDC_INIT_CFG_A)) ||
 		(W_SUCCESS != iis2mdc_write_reg(IIS2MDC_REG_CFG_B, IIS2MDC_INIT_CFG_B)) ||
