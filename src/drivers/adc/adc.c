@@ -4,7 +4,7 @@
 #include "semphr.h"
 
 #define ADC_CONV_TIMEOUT_TICKS pdMS_TO_TICKS(1)
-#define V_REF 2.5f
+#define V_REF 3.3f
 #define ADC1_NUM_CHANNELS 5
 #define ADC2_NUM_CHANNELS 2
 #define ADC3_NUM_CHANNELS 2
@@ -13,11 +13,6 @@
 static uint16_t adc1_dma_counts[ADC1_NUM_CHANNELS];
 static uint16_t adc2_dma_counts[ADC2_NUM_CHANNELS];
 static uint16_t adc3_dma_counts[ADC3_NUM_CHANNELS];
-
-// Copied 'safe' buffers
-static uint16_t adc1_raw_counts[ADC1_NUM_CHANNELS];
-static uint16_t adc2_raw_counts[ADC2_NUM_CHANNELS];
-static uint16_t adc3_raw_counts[ADC3_NUM_CHANNELS];
 
 static ADC_HandleTypeDef *adc1_handle;
 static ADC_HandleTypeDef *adc2_handle;
@@ -105,11 +100,11 @@ static w_status_t adc_get_raw_counts(adc_channel_t channel, uint32_t *output) {
 	taskENTER_CRITICAL();
 
 	if (1 == adc) {
-		*output = adc1_raw_counts[index];
+		*output = adc1_dma_counts[index];
 	} else if (2 == adc) {
 		*output = adc2_dma_counts[index];
 	} else {
-		*output = adc3_raw_counts[index];
+		*output = adc3_dma_counts[index];
 	}
 
 	taskEXIT_CRITICAL();
@@ -143,18 +138,6 @@ w_status_t adc_get_converted_val(adc_channel_t channel, float *output) {
 
 	*output = raw_volts * conversion_table[channel];
 	return W_SUCCESS;
-}
-
-void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc) {
-	if (hadc == adc1_handle) {
-		memcpy(adc1_raw_counts, adc1_dma_counts, sizeof(adc1_raw_counts));
-	} else if (hadc == adc2_handle) {
-		memcpy(adc2_raw_counts, adc2_dma_counts, sizeof(adc2_raw_counts));
-	} else if (hadc == adc3_handle) {
-		memcpy(adc3_raw_counts, adc3_dma_counts, sizeof(adc3_raw_counts));
-	} else {
-		return;
-	}
 }
 
 uint32_t adc_get_status(void) {
