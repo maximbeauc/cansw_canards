@@ -54,11 +54,11 @@ protected:
         RESET_FAKE(xQueueCreate);
         RESET_FAKE(xTimerCreate);
         RESET_FAKE(xQueueOverwrite);
-        RESET_FAKE(log_text)
-        RESET_FAKE(can_handler_register_callback)
-        RESET_FAKE(get_actuator_id)
-        RESET_FAKE(get_cmd_actuator_state)
-        RESET_FAKE(timer_get_ms)
+        RESET_FAKE(log_text);
+        RESET_FAKE(can_handler_register_callback);
+        RESET_FAKE(get_actuator_id);
+        RESET_FAKE(get_cmd_actuator_state);
+        RESET_FAKE(timer_get_ms);
         FFF_RESET_HISTORY();
         queue_send_event = EVENT_RESET;
     }

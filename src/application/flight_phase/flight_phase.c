@@ -221,7 +221,7 @@ fsm_state_t flight_phase_update_state(flight_phase_event_t event, fsm_state_t cu
 		case STATE_BOOST:
 			if (EVENT_INJ_OPEN == event) {
 				new_state = STATE_BOOST;
-				// restart flight timer constantly till loose signal
+				// restart flight timer constantly till lose signal
 				timer_get_ms(&(p_ctx->launch_timestamp_ms));
 
 			} else if (EVENT_ACT_DELAY_ELAPSED == event) {
@@ -260,7 +260,7 @@ fsm_state_t flight_phase_update_state(flight_phase_event_t event, fsm_state_t cu
 			log_text(5, "FlightPhase", "Unexpected event %d in state %d", event, curr_state);
 			break;
 
-		// depreiciate time?
+		// deprecate time?
 		case STATE_ERROR:
 			if (EVENT_RESET == event) {
 				new_state = STATE_IDLE;
@@ -307,7 +307,7 @@ static flight_phase_event_t flight_phase_timer_detection(const flight_phase_ctx_
 														 const fsm_state_t curr_state,
 														 const uint32_t timestamp_ms) {
 	if (NULL == p_ctx) {
-		log_text(5, "FlightPhase", "ERROR: Invalid ptrs in update states");
+		log_text(5, "FlightPhase", "ERROR: Invalid ptrs in timer detection");
 		// just return the current state if invalid
 		return EVENT_NONE;
 	}
