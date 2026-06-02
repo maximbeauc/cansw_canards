@@ -15,10 +15,13 @@
  */
 typedef enum {
 	EVENT_NONE,
-	EVENT_ESTIMATOR_INIT,
+	EVENT_PAD_FILTER,
+	EVENT_IGNITOR,
+	EVENT_LAUNCH_ACCEL,
 	EVENT_INJ_OPEN,
 	EVENT_ACT_DELAY_ELAPSED,
-	EVENT_FLIGHT_ELAPSED,
+	EVENT_RECOVERY_RATE, // This is event recovery log rate timer event
+	EVENT_SLEEP_RATE, // get into sleep rate
 	EVENT_RESET
 } flight_phase_event_t;
 
